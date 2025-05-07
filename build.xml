@@ -18,21 +18,30 @@
 
     <!-- Compile common classes -->
     <target name="compile-common" depends="init">
-        <javac srcdir="${src.dir}/common" destdir="${build.dir}/common">
+        <javac srcdir="${src.dir}/common" destdir="${build.dir}/common" includeantruntime="false">
+            <compilerarg value="--release"/>
             <compilerarg line="-encoding UTF-8" />
         </javac>
     </target>
 
     <!-- Compile client classes with common classes in classpath -->
     <target name="compile-client" depends="compile-common">
-        <javac srcdir="${src.dir}/client" destdir="${build.dir}/client">
+        <javac srcdir="${src.dir}/client" destdir="${build.dir}/client" includeantruntime="false">
+            <classpath>
+                <pathelement path="${build.dir}/common"/>
+            </classpath>
+            <compilerarg value="--release"/>
             <compilerarg line="-encoding UTF-8" />
         </javac>
     </target>
 
     <!-- Compile server classes with common classes in classpath -->
     <target name="compile-server" depends="compile-common">
-        <javac srcdir="${src.dir}/server" destdir="${build.dir}/server">
+        <javac srcdir="${src.dir}/server" destdir="${build.dir}/server" includeantruntime="false">
+            <classpath>
+                <pathelement path="${build.dir}/common"/>
+            </classpath>
+            <compilerarg value="--release"/>
             <compilerarg line="-encoding UTF-8" />
         </javac>
     </target>
