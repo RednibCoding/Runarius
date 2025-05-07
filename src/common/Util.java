@@ -28,7 +28,8 @@ public class Util {
                 processBuilder.command("cmd.exe", "/c", "start", "cmd.exe", "/k", "java -jar server.jar -waslaunched");
             } else if (os.contains("mac")) {
                 // macOS command to open a new terminal and run the server
-                processBuilder.command("osascript", "-e", "tell application \"Terminal\" to do script \"java -jar server.jar -waslaunched\"");
+                processBuilder.command("osascript", "-e",
+                        "tell application \"Terminal\" to do script \"java -jar server.jar -waslaunched\"");
             } else if (os.contains("nix") || os.contains("nux")) {
                 // Linux command to open a new terminal and run the server
                 processBuilder.command("x-terminal-emulator", "-e", "java -jar server.jar -waslaunched");
