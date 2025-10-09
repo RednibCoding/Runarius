@@ -24,9 +24,11 @@ public class GameWorld {
     private static final int PLANE_HEIGHT = 944;
     private static final int PLANE_MULTIPLIER = 1;
     
-    // Default spawn location (Lumbridge in RSC)
-    private static final int DEFAULT_SPAWN_X = 120;
-    private static final int DEFAULT_SPAWN_Y = 648;
+    // Default spawn location
+    // Using coordinates that have terrain data in land63.jag (around section 50, 50)
+    // Lumbridge (122, 657) doesn't have terrain data in our JAG files
+    private static final int DEFAULT_SPAWN_X = 1400;
+    private static final int DEFAULT_SPAWN_Y = 1400;
     private static final int DEFAULT_PLANE = 0;
     
     private GameWorld() {

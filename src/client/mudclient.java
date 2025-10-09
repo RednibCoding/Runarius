@@ -738,6 +738,10 @@ public class mudclient extends GameConnection {
     }
 
     public static void main(String args[]) {
+        // Enable debug logging for development
+        Logger.setLogLevel(Logger.LEVEL_DEBUG);
+        Logger.info("Starting Runarius client with debug logging enabled");
+        
         mudclient mc = new mudclient();
         mc.appletMode = false;
         if (args.length > 0 && args[0].equals("members"))
@@ -3605,6 +3609,7 @@ public class mudclient extends GameConnection {
         localLowerY = sectionY * 48 - 32;
         localUpperX = sectionX * 48 + 32;
         localUpperY = sectionY * 48 + 32;
+        Logger.debug("loadNextRegion: lx=" + lx + ", ly=" + ly + ", sectionX=" + sectionX + ", sectionY=" + sectionY);
         world.loadSection(lx, ly, lastHeightOffset);
         regionX -= planeWidth;
         regionY -= planeHeight;
@@ -7556,9 +7561,11 @@ public class mudclient extends GameConnection {
 
     private void loadMaps() {
         world.mapPack = readDataFile("maps" + Version.MAPS + ".jag", "map", 70);
+        Logger.debug("Loaded mapPack: " + (world.mapPack != null ? world.mapPack.length + " bytes" : "null"));
         if (members)
             world.memberMapPack = readDataFile("maps" + Version.MAPS + ".mem", "members map", 75);
         world.landscapePack = readDataFile("land" + Version.MAPS + ".jag", "landscape", 80);
+        Logger.debug("Loaded landscapePack: " + (world.landscapePack != null ? world.landscapePack.length + " bytes" : "null"));
         if (members)
             world.memberLandscapePack = readDataFile("land" + Version.MAPS + ".mem", "members landscape", 85);
     }

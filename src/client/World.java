@@ -251,11 +251,13 @@ public class World {
 
     public void loadSection(int x, int y, int plane, int chunk) {
         String mapname = "m" + plane + x / 10 + x % 10 + y / 10 + y % 10;
+        Logger.debug("loadSection: x=" + x + ", y=" + y + ", plane=" + plane + ", chunk=" + chunk + ", mapname=" + mapname);
         try {
             if (landscapePack != null) {
                 byte mapData[] = Utility.loadData(mapname + ".hei", 0, landscapePack);
                 if (mapData == null && memberLandscapePack != null)
                     mapData = Utility.loadData(mapname + ".hei", 0, memberLandscapePack);
+                Logger.debug("Loaded terrain data for " + mapname + ": " + (mapData != null ? mapData.length + " bytes" : "null"));
                 if (mapData != null && mapData.length > 0) {
                     int off = 0;
                     int lastVal = 0;
