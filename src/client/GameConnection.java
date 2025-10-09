@@ -149,12 +149,24 @@ public class GameConnection extends GameShell {
             if (loginResponse.getCode() == 25) {
                 moderatorLevel = 1;
                 autoLoginTimeout = 0;
+                // TODO: REMOVE THIS - Temporary compatibility layer for old packet handling
+                // Once all packets are migrated to the new handler system (ClientSidePacketHandlers),
+                // remove clientStream initialization entirely and delete the ClientStream class.
+                if (clientStream == null) {
+                    clientStream = new ClientStream(socket, (GameShell) this);
+                }
                 resetGame();
                 return;
             }
             if (loginResponse.getCode() == 0) {
                 moderatorLevel = 0;
                 autoLoginTimeout = 0;
+                // TODO: REMOVE THIS - Temporary compatibility layer for old packet handling
+                // Once all packets are migrated to the new handler system (ClientSidePacketHandlers),
+                // remove clientStream initialization entirely and delete the ClientStream class.
+                if (clientStream == null) {
+                    clientStream = new ClientStream(socket, (GameShell) this);
+                }
                 resetGame();
                 return;
             }
@@ -206,7 +218,9 @@ public class GameConnection extends GameShell {
         InputStream inStream;
         try {
             inStream = socket.getInputStream();
-            if (inStream.available() > 0 && diff > 5000L) {
+            // FIXED: Read packets whenever they're available, not just after 5 second delay
+            // The old logic (diff > 5000L) caused packets sent immediately after login to be missed
+            if (inStream.available() > 0) {
                 packetLastRead = l;
                 handlePacket(socket);
             }
@@ -226,19 +240,28 @@ public class GameConnection extends GameShell {
                 byte[] lengthOpcodeBuffer = inStream.readNBytes(4);
                 ByteBuffer headerBuffer = ByteBuffer.wrap(lengthOpcodeBuffer);
                 short length = headerBuffer.getShort();
-                short opcode = headerBuffer.getShort();
+                short opcodeValue = headerBuffer.getShort();
+    
+                Opcodes.Server opcode = Opcodes.Server.valueOf(opcodeValue);
+                Logger.debug("Received packet: " + opcode + " (opcode=" + opcodeValue + ", length=" + length + ")");
     
                 // Ensure that the full packet data is available
                 if (inStream.available() >= length - 4) {
                     byte[] dataBuffer = inStream.readNBytes(length - 2); // read length without length-bytes (2)
-                    Buffer data = new Buffer(dataBuffer);
-    
-                    IPacketHandler handler = ClientSidePacketHandlers.getHandlerByOpcode(opcode);
+                    
+                    // Try to handle with registered handler first
+                    IClientPacketHandler handler = ClientSidePacketHandlers.getHandlerByOpcode(opcodeValue);
     
                     if (handler != null) {
-                        handler.handle(socket, data);
+                        Logger.debug("Using registered handler for " + opcode);
+                        Buffer data = new Buffer(dataBuffer);
+                        handler.handle(this, socket, data);
                     } else {
-                        System.out.println("Unknown opcode: " + opcode);
+                        // TODO: REMOVE THIS - Temporary fallback to old packet handling
+                        // Once all packets have handlers registered in ClientSidePacketHandlers,
+                        // remove this else block and the entire mudclient.handleIncomingPacket() method.
+                        Logger.debug("Passing " + opcode + " to mudclient.handleIncomingPacket()");
+                        handleIncomingPacket(opcode, opcodeValue, dataBuffer.length, dataBuffer);
                     }
                 }
             }
@@ -338,7 +361,7 @@ public class GameConnection extends GameShell {
         drawString(g, s1, font, c / 2, c1 / 2 + 10);
     }
 
-    private void sortFriendsList() {
+    public void sortFriendsList() {
         boolean flag = true;
         while (flag) {
             flag = false;

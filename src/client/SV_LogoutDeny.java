@@ -1,18 +1,9 @@
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.Socket;
 
-public class SV_LogoutDeny implements IPacketHandler {
+public class SV_LogoutDeny implements IClientPacketHandler {
     @Override
-    public void handle(Socket socket, Buffer data) {
-        try {
-            OutputStream outStream = socket.getOutputStream();
-
-            // TODO: prevent client from logging out
-            Logger.debug("SV_LogoutDeny not yet implemented");
-
-        } catch (IOException ex) {
-            Logger.error(ex.getMessage());
-        }
+    public void handle(GameConnection client, Socket socket, Buffer data) {
+        client.cantLogout();
+        Logger.debug("Server denied logout request");
     }
 }

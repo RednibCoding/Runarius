@@ -1,10 +1,10 @@
 import java.net.Socket;
 
-public class SV_MessageHandler implements IPacketHandler {
+public class SV_MessageHandler implements IClientPacketHandler {
     @Override
-    public void handle(Socket socket, Buffer data) {
+    public void handle(GameConnection client, Socket socket, Buffer data) {
         String message = data.getString();
-        // TODO: show message in client
-        Logger.debug("SV_MessageHandler not yet implemented");
+        client.showServerMessage(message);
+        Logger.debug("Server message: " + message);
     }
 }

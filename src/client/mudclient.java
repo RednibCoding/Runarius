@@ -82,7 +82,7 @@ public class mudclient extends GameConnection {
      * <p>
      * Used to create {@link mudclient#localPlayer}, the player's {@link GameCharacter} reference
      */
-    int localPlayerServerIndex;
+    public int localPlayerServerIndex;
     /**
      * Handle to the control on the {@link Panel} {@link mudclient#panelMessageTabs}
      * for the chat history text list
@@ -275,7 +275,7 @@ public class mudclient extends GameConnection {
     private Graphics graphics;
     private int regionX;
     private int regionY;
-    private int planeIndex;
+    public int planeIndex;
     //private String aString744;// unused
     private boolean welcomScreenAlreadyShown;
     private int mouseButtonClick;
@@ -454,7 +454,7 @@ public class mudclient extends GameConnection {
     private byte soundData[];
     private int statFatigue;
     private int fatigueSleeping;
-    private boolean loadingArea;
+    public boolean loadingArea;
     private int tradeRecipientConfirmItemsCount;
     private int tradeRecipientConfirmItems[];
     private int tradeRecipientConfirmItemCount[];
@@ -479,9 +479,9 @@ public class mudclient extends GameConnection {
     private int tradeItemsCount;
     private int tradeItems[];
     private int tradeItemCount[];
-    private int planeWidth;
-    private int planeHeight;
-    private int planeMultiplier;
+    public int planeWidth;
+    public int planeHeight;
+    public int planeMultiplier;
     private int lastHeightOffset;
     //private int anInt917;// unused
     private boolean duelSettingsRetreat;
@@ -4332,8 +4332,21 @@ public class mudclient extends GameConnection {
             surface.draw(graphics, 0, 0);
             return;
         }
-        if (!world.playerAlive)
+        if (!world.playerAlive) {
+            // Draw loading screen while waiting for world to be initialized
+            surface.blackScreen();
+            surface.drawStringCenter("Loading - Please wait...", gameWidth / 2, gameHeight / 2, 4, 0xffffff);
+            surface.draw(graphics, 0, 0);
             return;
+        }
+        if (localPlayerServerIndex < 0) {
+            // Safety check: wait for localPlayerServerIndex to be initialized
+            surface.blackScreen();
+            surface.drawStringCenter("Loading - Please wait...", gameWidth / 2, gameHeight / 2, 4, 0xffffff);
+            surface.draw(graphics, 0, 0);
+            return;
+        }
+        
         for (int i = 0; i < 64; i++) {
             scene.removeModel(world.roofModels[lastHeightOffset][i]);
             if (lastHeightOffset == 0) {

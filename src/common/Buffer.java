@@ -147,6 +147,15 @@ public class Buffer {
     public void put(byte[] src) {
         buffer.write(src, 0, src.length);
     }
+    
+    /**
+     * Alias for put(byte[]) - Puts an array of bytes into the buffer.
+     *
+     * @param src the byte array to put
+     */
+    public void putBytes(byte[] src) {
+        put(src);
+    }
 
     /**
      * Puts a portion of an array of bytes into the buffer.

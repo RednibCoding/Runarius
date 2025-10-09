@@ -1,18 +1,17 @@
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.Socket;
 
-public class SV_IgnoreList implements IPacketHandler {
+public class SV_IgnoreList implements IClientPacketHandler {
     @Override
-    public void handle(Socket socket, Buffer data) {
-        try {
-            OutputStream outStream = socket.getOutputStream();
-
-            // TODO: put member on ignore list
-            Logger.debug("SV_IgnoreList not yet implemented");
-
-        } catch (IOException ex) {
-            Logger.error(ex.getMessage());
+    public void handle(GameConnection client, Socket socket, Buffer data) {
+        // Read ignore list from server
+        byte count = data.getByte();
+        client.ignoreListCount = count;
+        
+        for (int i = 0; i < count; i++) {
+            long usernameHash = data.getLong();
+            client.ignoreList[i] = usernameHash;
         }
+        
+        Logger.debug("Ignore list: " + count + " players");
     }
 }

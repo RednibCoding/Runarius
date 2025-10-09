@@ -7,23 +7,249 @@ public class CL_LoginHandler implements IPacketHandler {
     @Override
     public void handle(Socket socket, Buffer data) {
         try {
-
             InputStream inStream = socket.getInputStream();
             OutputStream outStream = socket.getOutputStream();
             
             int clientVersion = data.getInt();
-            Long sessionID = data.getLong();
+            long sessionId = data.getLong();
             String username = data.getString();
             String password = data.getString();
 
-            // TODO: do actual login here
+            Logger.info("Login attempt: " + username + " (session: " + sessionId + ", version: " + clientVersion + ")");
 
+            // TODO: Validate credentials against database
+            // For now, accept all logins
+            
+            // Get pending player by session ID
+            Player player = GameWorld.getInstance().getPendingPlayer(sessionId);
+            
+            if (player == null) {
+                Logger.error("No pending session found for " + username + " (session: " + sessionId + ")");
+                
+                Buffer out = new Buffer();
+                out.putInt(LoginResponse.SERVER_REJECTED_SESSION.getCode());
+                outStream.write(out.toArray());
+                outStream.flush();
+                return;
+            }
+            
+            Logger.info("Found pending player: " + player.getUsername());
+            
+            // Add player to world
+            GameWorld.getInstance().addPlayer(player);
+            
+            // Send success response
             Buffer out = new Buffer();
             out.putInt(LoginResponse.SUCCESS.getCode());
             outStream.write(out.toArray());
             outStream.flush();
+            
+            // Send world info
+            sendWorldInfo(player);
+            
+            // Send player stats
+            sendPlayerStats(player);
+            
+            // Send inventory
+            sendInventory(player);
+            
+            // Send friend list
+            sendFriendList(player);
+            
+            // Send ignore list
+            sendIgnoreList(player);
+            
+            // Send privacy settings
+            sendPrivacySettings(player);
+            
+            // Send region data (required for client to render world)
+            sendRegionPlayers(player);
+            sendRegionObjects(player);
+            sendRegionWallObjects(player);
+            sendRegionGroundItems(player);
+            sendRegionNPCs(player);
+            
+            Logger.info("Player " + username + " logged in successfully");
+            
         } catch (IOException ex) {
-            Logger.error(ex.getMessage());
+            Logger.error("Login error: " + ex.getMessage());
         }
+    }
+    
+    private void sendWorldInfo(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_WORLD_INFO.value);
+        out.putShort((short) player.getServerId());
+        out.putShort((short) GameWorld.getInstance().getPlaneWidth());
+        out.putShort((short) GameWorld.getInstance().getPlaneHeight());
+        out.putShort((short) player.getPlaneIndex());
+        out.putShort((short) GameWorld.getInstance().getPlaneMultiplier());
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendPlayerStats(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_PLAYER_STAT_LIST.value);
+        
+        // Current stats
+        for (int i = 0; i < 18; i++) {
+            out.putByte((byte) player.getCurrentStats()[i]);
+        }
+        
+        // Base stats
+        for (int i = 0; i < 18; i++) {
+            out.putByte((byte) player.getBaseStats()[i]);
+        }
+        
+        // Experience
+        for (int i = 0; i < 18; i++) {
+            out.putInt(player.getExperience()[i]);
+        }
+        
+        // Quest points
+        out.putByte((byte) player.getQuestPoints());
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendInventory(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_INVENTORY_ITEMS.value);
+        out.putByte((byte) player.getInventory().size());
+        
+        for (Item item : player.getInventory()) {
+            out.putShort((short) item.getId());
+            if (item.isStackable()) {
+                out.putInt(item.getAmount());
+            }
+        }
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendFriendList(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_FRIEND_LIST.value);
+        out.putByte((byte) player.getFriendList().size());
+        
+        for (long friendHash : player.getFriendList()) {
+            out.putLong(friendHash);
+            out.putByte((byte) (GameWorld.getInstance().isPlayerOnline(friendHash) ? 1 : 0));
+        }
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendIgnoreList(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_IGNORE_LIST.value);
+        out.putByte((byte) player.getIgnoreList().size());
+        
+        for (long ignoreHash : player.getIgnoreList()) {
+            out.putLong(ignoreHash);
+        }
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendPrivacySettings(Player player) throws IOException {
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_PRIVACY_SETTINGS.value);
+        out.putByte((byte) (player.isBlockChat() ? 1 : 0));
+        out.putByte((byte) (player.isBlockPrivateMessages() ? 1 : 0));
+        out.putByte((byte) (player.isBlockTrade() ? 1 : 0));
+        out.putByte((byte) (player.isBlockDuel() ? 1 : 0));
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+    
+    private void sendRegionPlayers(Player player) throws IOException {
+        // For now, send empty player region data
+        // TODO: Send actual nearby players when implemented
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_PLAYERS.value);
+        
+        // This packet uses bit-packed data
+        // Client reads: bit offset 8, then regionX (11 bits), regionY (13 bits), anim (4 bits), playerCount (8 bits)
+        // Total: 8 + 11 + 13 + 4 + 8 = 44 bits = 6 bytes minimum
+        
+        // Create bit buffer (6 bytes to hold all data)
+        byte[] bitData = new byte[6];
+        int bitOffset = 8; // Skip first byte (starts at bit 8)
+        
+        // Region X (11 bits) - player's X coordinate
+        int regionX = player.getX();
+        NetHelper.setBitMask(bitData, bitOffset, 11, regionX);
+        bitOffset += 11;
+        
+        // Region Y (13 bits) - player's Y coordinate  
+        int regionY = player.getY();
+        NetHelper.setBitMask(bitData, bitOffset, 13, regionY);
+        bitOffset += 13;
+        
+        // Animation (4 bits) - 0 = standing
+        NetHelper.setBitMask(bitData, bitOffset, 4, 0);
+        bitOffset += 4;
+        
+        // Known player count (8 bits) - no other players for now
+        NetHelper.setBitMask(bitData, bitOffset, 8, 0);
+        
+        // Write the bit-packed data
+        out.putBytes(bitData);
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent region players data for position " + regionX + ", " + regionY);
+    }
+    
+    private void sendRegionObjects(Player player) throws IOException {
+        // Send empty objects list for now
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_OBJECTS.value);
+        out.putShort((short) 0); // No objects
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent region objects data");
+    }
+    
+    private void sendRegionWallObjects(Player player) throws IOException {
+        // Send empty wall objects list for now
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_WALL_OBJECTS.value);
+        out.putShort((short) 0); // No wall objects
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent region wall objects data");
+    }
+    
+    private void sendRegionGroundItems(Player player) throws IOException {
+        // Send empty ground items list for now
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_GROUND_ITEMS.value);
+        out.putShort((short) 0); // No ground items
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent region ground items data");
+    }
+    
+    private void sendRegionNPCs(Player player) throws IOException {
+        // Send empty NPC list for now
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_NPCS.value);
+        out.putShort((short) 0); // No NPCs
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent region NPCs data");
     }
 }
