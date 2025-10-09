@@ -69,6 +69,10 @@ public class CL_LoginHandler implements IPacketHandler {
             sendRegionGroundItems(player);
             sendRegionNPCs(player);
             
+            // TODO: Send player appearance in a separate update packet after client confirms player creation
+            // For now, commenting this out as it causes client disconnect when player doesn't exist yet
+            // sendPlayerAppearance(player);
+            
             Logger.info("Player " + username + " logged in successfully");
             
         } catch (IOException ex) {
@@ -251,5 +255,45 @@ public class CL_LoginHandler implements IPacketHandler {
         player.getSocket().getOutputStream().write(out.toArrayWithLen());
         player.getSocket().getOutputStream().flush();
         Logger.debug("Sent region NPCs data");
+    }
+    
+    private void sendPlayerAppearance(Player player) throws IOException {
+        // Send SV_REGION_PLAYER_UPDATE with updateType 5 (appearance)
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_PLAYER_UPDATE.value);
+        
+        // Update size - we're sending 1 player update
+        out.putShort((short) 1);
+        
+        // Player server index
+        out.putShort((short) player.getServerId());
+        
+        // Update type 5 = appearance
+        out.putByte((byte) 5);
+        
+        // Server ID (again)
+        out.putShort((short) player.getServerId());
+        
+        // Username hash
+        out.putLong(player.getUsernameHash());
+        
+        // Equipped items count (for now, send 0 - no equipment)
+        out.putByte((byte) 0);
+        
+        // Appearance colors
+        out.putByte((byte) player.getHairColor());      // Hair color
+        out.putByte((byte) player.getTopColor());       // Top color
+        out.putByte((byte) player.getBottomColor());    // Bottom color  
+        out.putByte((byte) player.getSkinColor());      // Skin color
+        
+        // Combat level
+        out.putByte((byte) player.getCombatLevel());
+        
+        // Skull visible (0 = no skull, 1 = skull visible for PKing)
+        out.putByte((byte) 0);
+        
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+        Logger.debug("Sent player appearance for " + player.getUsername());
     }
 }

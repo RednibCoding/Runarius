@@ -289,4 +289,50 @@ public class Player {
     public int getSkinColour() {
         return skinColour;
     }
+    
+    // American spelling aliases for appearance methods
+    public int getHairColor() {
+        return hairColour;
+    }
+    
+    public int getTopColor() {
+        return topColour;
+    }
+    
+    public int getBottomColor() {
+        return bottomColour;
+    }
+    
+    public int getSkinColor() {
+        return skinColour;
+    }
+    
+    /**
+     * Calculate combat level based on stats (RSC formula)
+     */
+    public int getCombatLevel() {
+        // RSC Combat level formula:
+        // Base = (Defence + Hits + Prayer/2) * 0.25
+        // Melee = (Attack + Strength) * 0.325
+        // Magic = Magic * 1.5 * 0.325
+        // Range = Ranged * 1.5 * 0.325
+        // Combat Level = Base + highest of (Melee, Magic, Range)
+        
+        int defence = baseStats[1];   // Defence (index 1)
+        int hits = baseStats[3];      // Hits (index 3)
+        int prayer = baseStats[5];    // Prayer (index 5)
+        int attack = baseStats[0];    // Attack (index 0)
+        int strength = baseStats[2];  // Strength (index 2)
+        int magic = baseStats[6];     // Magic (index 6)
+        int ranged = baseStats[4];    // Ranged (index 4)
+        
+        double base = (defence + hits + prayer / 2.0) * 0.25;
+        double melee = (attack + strength) * 0.325;
+        double mage = magic * 1.5 * 0.325;
+        double range = ranged * 1.5 * 0.325;
+        
+        double combatLevel = base + Math.max(melee, Math.max(mage, range));
+        
+        return (int) Math.floor(combatLevel);
+    }
 }
