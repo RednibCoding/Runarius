@@ -6,6 +6,104 @@ This document describes the client-server communication protocol implementation 
 
 ---
 
+## ⚠️ CRITICAL: Packet Format Migration ⚠️
+
+**THE MOST IMPORTANT THING TO UNDERSTAND ABOUT THIS CODEBASE**
+
+The project is currently migrating from an OLD packet format to a NEW packet format. **These formats are INCOMPATIBLE and must be migrated one packet at a time.**
+
+### OLD Format (Legacy - DO NOT USE FOR NEW CODE)
+
+Used by the legacy `ClientStream` and `Packet_` classes:
+
+```
+[2 bytes] Length (big-endian, includes opcode + data, NOT the length bytes themselves)
+[1 byte]  Opcode
+[N bytes] Data
+```
+
+**Problems with old format:**
+- Only 1-byte opcode (limits to 256 packet types)
+- Incompatible with server's expected format
+- Uses buffered sending via `ClientStream` thread
+
+**Still used by:** Most in-game packets that haven't been migrated yet
+
+### NEW Format (Target Architecture - USE THIS)
+
+Used by the modern `Buffer` class:
+
+```
+[2 bytes] Length (big-endian, includes opcode + data, NOT the length bytes themselves)
+[2 bytes] Opcode (big-endian short, allows 65,536 packet types)
+[N bytes] Data
+```
+
+**Benefits:**
+- Clean, consistent format
+- Direct socket writes (no buffering complications)
+- Compatible with server's `ClientHandler`
+- Easier to debug and maintain
+
+**Currently used by:** Session, Login, Walk packets (and growing!)
+
+### Migration Process
+
+**To migrate a packet from OLD to NEW format:**
+
+1. **Create new sender method in `GameConnection.java`:**
+   ```java
+   protected void sendExamplePacket(int param1, String param2) {
+       try {
+           Buffer out = new Buffer();
+           out.putShort(Opcodes.Client.CL_EXAMPLE.value);  // 2-byte opcode
+           out.putInt(param1);
+           out.putString(param2);
+           
+           OutputStream outputStream = socket.getOutputStream();
+           outputStream.write(out.toArrayWithLen());
+           outputStream.flush();
+           
+           Logger.debug("Sent example packet: param1=" + param1);
+       } catch (IOException ex) {
+           Logger.error("Failed to send example packet: " + ex.getMessage());
+       }
+   }
+   ```
+
+2. **Replace OLD calls in `mudclient.java`:**
+   ```java
+   // OLD - DELETE THIS:
+   super.clientStream.newPacket(Opcodes.Client.CL_EXAMPLE.value);
+   super.clientStream.putInt(param1);
+   super.clientStream.putString(param2);
+   super.clientStream.sendPacket();
+   
+   // NEW - USE THIS:
+   sendExamplePacket(param1, param2);
+   ```
+
+3. **Server-side handler works automatically** (already expects NEW format):
+   ```java
+   // In ServerSidePacketHandlers - already registered:
+   packetHandlers.put(Opcodes.Client.CL_EXAMPLE, new CL_ExampleHandler()::handle);
+   ```
+
+4. **Test thoroughly** before moving to the next packet!
+
+### Migrated Packets (✅ Using NEW Format)
+
+- ✅ `CL_SESSION` - Session request
+- ✅ `CL_LOGIN` - Login authentication
+- ✅ `CL_WALK` - Player movement
+- ✅ `CL_WALK_ACTION` - Player movement with action
+
+### Packets Still Using OLD Format (❌ Need Migration)
+
+Most other in-game packets - to be migrated incrementally.
+
+---
+
 ## Table of Contents
 
 1. [Connection & Authentication Flow](#connection--authentication-flow)
@@ -631,6 +729,77 @@ Plane levels:
 
 ---
 
+## Movement System
+
+### CL_WALK Packet (Opcode 187)
+
+**Direction:** Client → Server
+
+**Format (NEW - migrated):**
+```
+[2 bytes] Length
+[2 bytes] Opcode (187 for normal walk, 16 for walk-to-action)
+[2 bytes] Target X (absolute world coordinate)
+[2 bytes] Target Y (absolute world coordinate)
+[N pairs] Walk path steps (optional, byte pairs: deltaX, deltaY)
+```
+
+**Client Implementation:**
+- Method: `GameConnection.sendWalkPacket()`
+- Called from: `mudclient.walkToActionSource()` and `mudclient.walkTo()`
+- Uses NEW `Buffer` format
+- Sends immediately via socket (no buffering)
+
+**Walk Path Format:**
+- Each step is 2 bytes: `[deltaX][deltaY]`
+- Deltas are relative to target position
+- Maximum 25 steps per packet
+- Empty path = just move to target directly
+
+**Server Handler:**
+- Handler: `CL_WalkHandler.java`
+- Registered in: `ServerSidePacketHandlers`
+- Updates player position: `player.setX(targetX)`, `player.setY(targetY)`
+- TODO: Implement pathfinding validation
+- TODO: Broadcast position to nearby players
+
+**Example Packet:**
+```java
+// Walk to (1400, 1398) with no path steps
+[0x00, 0x06]              // Length = 6 (opcode + 2 coords)
+[0x00, 0xBB]              // Opcode = 187 (CL_WALK)
+[0x05, 0x78]              // Target X = 1400
+[0x05, 0x76]              // Target Y = 1398
+```
+
+---
+
+## Implementation Status
+
+### ✅ Completed
+
+- Connection and session management
+- Login authentication
+- World info transmission
+- Player stats system
+- Inventory system (empty)
+- Friend/ignore lists (empty)
+- Privacy settings
+- Region player positioning (bit-packed)
+- Map loading from JAG files
+- Player appearance system
+- Player rendering with equipment
+- Basic player model (head, body, legs)
+- **Movement packets (CL_WALK, CL_WALK_ACTION) - NEW FORMAT ✅**
+
+### 🚧 In Progress
+
+- Movement position broadcasting (server → other clients)
+- Client-side player position updates
+
+
+---
+
 ## Implementation Status
 
 ### ✅ Completed
@@ -711,6 +880,36 @@ Logger.debug("Appearance: equipped=" + Arrays.toString(equippedItems));
 
 ---
 
+## Key Lessons Learned
+
+### Packet Format Migration is Critical
+
+The single most important architectural decision in this project is the **incremental migration from OLD (1-byte opcode) to NEW (2-byte opcode) packet format**.
+
+**Why this matters:**
+- The OLD format (`ClientStream`/`Packet_`) is incompatible with modern server architecture
+- Trying to support both formats simultaneously in `ClientHandler` causes bugs and confusion
+- The ONLY correct approach is to migrate packets one-by-one at the SOURCE (client-side)
+
+**Success pattern:**
+1. Create new `send*Packet()` method in `GameConnection` using `Buffer`
+2. Replace old `clientStream.newPacket()` calls in `mudclient.java`
+3. Server handlers work immediately (already expect NEW format)
+4. Test thoroughly, then move to next packet
+
+**DO NOT:**
+- ❌ Try to make `ClientHandler` support both formats
+- ❌ Create "interceptors" or "converters" in the network layer
+- ❌ Modify `Packet_` or `ClientStream` to change their format
+
+**DO:**
+- ✅ Replace packet sending at the source (client-side)
+- ✅ Migrate one packet type at a time
+- ✅ Test each migration thoroughly
+- ✅ Document migrated packets
+
+---
+
 ## Protocol Version
 
 **Current implementation:** Based on RSC build 203/204  
@@ -727,4 +926,4 @@ Logger.debug("Appearance: equipped=" + Arrays.toString(equippedItems));
 ---
 
 **Document maintained by:** Runarius Development Team  
-**Next update:** When movement system is implemented
+**Last major update:** 2025-10-10 - Walk packet migration completed ✅

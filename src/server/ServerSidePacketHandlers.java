@@ -24,6 +24,10 @@ public class ServerSidePacketHandlers {
         // Player
         packetHandlers.put(Opcodes.Client.CL_APPEARANCE, new CL_AppearanceHandler()::handle);
         packetHandlers.put(Opcodes.Client.CL_COMBAT_STYLE, new CL_CombatStyleHandler()::handle);
+        
+        // Movement
+        packetHandlers.put(Opcodes.Client.CL_WALK, new CL_WalkHandler()::handle);
+        packetHandlers.put(Opcodes.Client.CL_WALK_ACTION, new CL_WalkHandler()::handle);
     }
 
     public static IPacketHandler getHandlerByOpcode(short opcode) {

@@ -514,4 +514,45 @@ public class GameConnection extends GameShell {
         return 0;
     }
 
+    /**
+     * NEW PACKET FORMAT: Send walk packet using Buffer (2-byte opcode format).
+     * This replaces the old ClientStream walk packet sending.
+     * 
+     * @param targetX Absolute world X coordinate
+     * @param targetY Absolute world Y coordinate
+     * @param walkPath Array of walk path steps (alternating deltaX, deltaY)
+     * @param stepCount Number of steps in the path
+     * @param isAction True for CL_WALK_ACTION, false for CL_WALK
+     */
+    protected void sendWalkPacket(int targetX, int targetY, byte[] walkPath, int stepCount, boolean isAction) {
+        try {
+            Buffer out = new Buffer();
+            
+            // Use appropriate opcode
+            if (isAction) {
+                out.putShort(Opcodes.Client.CL_WALK_ACTION.value);
+            } else {
+                out.putShort(Opcodes.Client.CL_WALK.value);
+            }
+            
+            // Target coordinates
+            out.putShort((short) targetX);
+            out.putShort((short) targetY);
+            
+            // Walk path steps (byte pairs: deltaX, deltaY)
+            if (walkPath != null && stepCount > 0) {
+                out.put(walkPath, 0, stepCount * 2);
+            }
+            
+            // Send with new packet format
+            OutputStream outputStream = socket.getOutputStream();
+            outputStream.write(out.toArrayWithLen());
+            outputStream.flush();
+            
+            Logger.debug("Sent walk packet: target=(" + targetX + "," + targetY + "), steps=" + stepCount + ", action=" + isAction);
+            
+        } catch (IOException ex) {
+            Logger.error("Failed to send walk packet: " + ex.getMessage());
+        }
+    }
 }

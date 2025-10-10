@@ -15,7 +15,15 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try (InputStream inputStream = socket.getInputStream(); OutputStream outputStream = socket.getOutputStream()) {
+            Logger.info("ClientHandler started for connection: " + socket.getRemoteSocketAddress());
+            int loopCount = 0;
+            
             while (true) {
+                loopCount++;
+                if (loopCount % 100 == 0) {
+                    Logger.debug("ClientHandler loop iteration: " + loopCount);
+                }
+                
                 // Check if at least 4 bytes are available to read the length and opcode
                 if (inputStream.available() >= 4) {
                     byte[] lengthOpcodeBuffer = inputStream.readNBytes(4);
@@ -23,17 +31,20 @@ public class ClientHandler implements Runnable {
                     short length = headerBuffer.getShort();
                     short opcode = headerBuffer.getShort();
 
+                    Logger.info(">>> Packet received: opcode=" + opcode + ", length=" + length + ", dataLength=" + (length - 2));
+
                     // Ensure that the full packet data is available
                     if (inputStream.available() >= length - 4) {
-                        byte[] dataBuffer = inputStream.readNBytes(length - 2); // read length without length-bytes (2)
+                        byte[] dataBuffer = inputStream.readNBytes(length - 2); // read length without opcode bytes (2)
                         Buffer data = new Buffer(dataBuffer);
 
                         IPacketHandler handler = ServerSidePacketHandlers.getHandlerByOpcode(opcode);
 
                         if (handler != null) {
+                            Logger.debug("Calling handler for opcode=" + opcode);
                             handler.handle(socket, data);
                         } else {
-                            System.out.println("Unknown opcode: " + opcode);
+                            Logger.warn("Unknown opcode: " + opcode + " (length=" + length + ")");
                         }
                     } else {
                         Thread.sleep(50); // Wait for more data to arrive

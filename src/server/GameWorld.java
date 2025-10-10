@@ -82,6 +82,24 @@ public class GameWorld {
     }
     
     /**
+     * Get a player by their socket connection.
+     */
+    public Player getPlayerBySocket(java.net.Socket socket) {
+        for (Player player : players.values()) {
+            if (player.getSocket() == socket) {
+                return player;
+            }
+        }
+        // Also check pending players
+        for (Player player : pendingPlayers.values()) {
+            if (player.getSocket() == socket) {
+                return player;
+            }
+        }
+        return null;
+    }
+    
+    /**
      * Add a pending player (has session but not logged in yet).
      */
     public void addPendingPlayer(Player player) {

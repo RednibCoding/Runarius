@@ -938,20 +938,20 @@ public class mudclient extends GameConnection {
         startX = walkPathX[steps];
         startY = walkPathY[steps];
         steps--;
-        if (walkToAction)
-            super.clientStream.newPacket(Opcodes.Client.CL_WALK_ACTION.value);
-        else
-            super.clientStream.newPacket(Opcodes.Client.CL_WALK.value);
-        super.clientStream.putShort(startX + regionX);
-        super.clientStream.putShort(startY + regionY);
-        if (walkToAction && steps == -1 && (startX + regionX) % 5 == 0)
-            steps = 0;
+        
+        // NEW: Use new packet format instead of old ClientStream
+        // Build walk path array
+        byte[] walkPath = new byte[(steps + 1) * 2];
+        int pathIndex = 0;
         for (int l1 = steps; l1 >= 0 && l1 > steps - 25; l1--) {
-            super.clientStream.putByte(walkPathX[l1] - startX);
-            super.clientStream.putByte(walkPathY[l1] - startY);
+            walkPath[pathIndex++] = (byte) (walkPathX[l1] - startX);
+            walkPath[pathIndex++] = (byte) (walkPathY[l1] - startY);
         }
-
-        super.clientStream.sendPacket();
+        int actualSteps = pathIndex / 2;
+        
+        // Send using new format
+        sendWalkPacket(startX + regionX, startY + regionY, walkPath, actualSteps, walkToAction);
+        
         mouseClickXStep = -24;
         mouseClickXX = super.mouseX;
         mouseClickXY = super.mouseY;
@@ -967,20 +967,20 @@ public class mudclient extends GameConnection {
         startX = walkPathX[steps];
         startY = walkPathY[steps];
         steps--;
-        if (walkToAction)
-            super.clientStream.newPacket(Opcodes.Client.CL_WALK_ACTION.value);
-        else
-            super.clientStream.newPacket(Opcodes.Client.CL_WALK.value);
-        super.clientStream.putShort(startX + regionX);
-        super.clientStream.putShort(startY + regionY);
-        if (walkToAction && steps == -1 && (startX + regionX) % 5 == 0)
-            steps = 0;
+        
+        // NEW: Use new packet format instead of old ClientStream
+        // Build walk path array
+        byte[] walkPath = new byte[(steps + 1) * 2];
+        int pathIndex = 0;
         for (int l1 = steps; l1 >= 0 && l1 > steps - 25; l1--) {
-            super.clientStream.putByte(walkPathX[l1] - startX);
-            super.clientStream.putByte(walkPathY[l1] - startY);
+            walkPath[pathIndex++] = (byte) (walkPathX[l1] - startX);
+            walkPath[pathIndex++] = (byte) (walkPathY[l1] - startY);
         }
-
-        super.clientStream.sendPacket();
+        int actualSteps = pathIndex / 2;
+        
+        // Send using new format
+        sendWalkPacket(startX + regionX, startY + regionY, walkPath, actualSteps, walkToAction);
+        
         mouseClickXStep = -24;
         mouseClickXX = super.mouseX;
         mouseClickXY = super.mouseY;
