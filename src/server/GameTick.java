@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -60,6 +61,8 @@ public class GameTick {
     private void tick() {
         tickCount++;
         
+        Logger.info("=== TICK " + tickCount + " START ===");
+        
         try {
             // Process movement for all players
             processPlayerMovement();
@@ -75,58 +78,142 @@ public class GameTick {
             Logger.error("Error in game tick " + tickCount + ": " + e.getMessage());
             e.printStackTrace();
         }
+        
+        Logger.info("=== TICK " + tickCount + " END ===");
     }
     
     /**
-     * Process one movement step for each walking player
+     * Process one movement step for each walking player.
+     * 
+     * Based on server-js pattern:
+     * Phase 1: Process player ticks - movement + updateNearby for ALL players
+     * Phase 2: Send region updates to ALL players
      */
     private void processPlayerMovement() {
         GameWorld world = GameWorld.getInstance();
         
+        int playerCount = world.getAllPlayers().size();
+        Logger.info("  Processing " + playerCount + " players");
+        
+        // === PHASE 1: Tick all players (movement + detect nearby entities) ===
         for (Player player : world.getAllPlayers()) {
-            if (player == null || !player.hasWalkSteps()) {
+            if (player == null) {
                 continue;
             }
             
             try {
-                // Get next step from queue
-                int[] step = player.getWalkQueue().poll();
-                if (step == null) {
-                    continue;
+                // FIRST: Update nearby players (detects who's in range)
+                // This is critical - must happen EVERY tick, not just on movement!
+                updateNearbyPlayers(player);
+                
+                // THEN: Process movement if player has walk steps
+                if (player.hasWalkSteps()) {
+                    // Get next step from queue
+                    int[] step = player.getWalkQueue().poll();
+                    if (step != null) {
+                        int deltaX = step[0];
+                        int deltaY = step[1];
+                        
+                        // Update player position
+                        int oldX = player.getX();
+                        int oldY = player.getY();
+                        int newX = oldX + deltaX;
+                        int newY = oldY + deltaY;
+                        
+                        player.setX((short) newX);
+                        player.setY((short) newY);
+                        player.setWalking(true);
+                        
+                        // Calculate and update direction (0-7 for N/NE/E/SE/S/SW/W/NW)
+                        int direction = calculateDirection(deltaX, deltaY);
+                        player.setDirection(direction);
+                        
+                        // Mark this player as moved in nearby players' tracking sets
+                        for (Player nearbyPlayer : world.getNearbyPlayers(newX, newY, 16)) {
+                            if (nearbyPlayer != player && nearbyPlayer.getKnownPlayers().contains(player)) {
+                                nearbyPlayer.getMovedPlayers().add(player);
+                            }
+                        }
+                        
+                        Logger.debug("Player " + player.getUsername() + " walked: " +
+                                   "(" + oldX + "," + oldY + ") -> (" + newX + "," + newY + ") dir=" + direction);
+                    }
                 }
                 
-                int deltaX = step[0];
-                int deltaY = step[1];
-                
-                Logger.debug("Processing step for " + player.getUsername() + 
-                           ": deltaX=" + deltaX + ", deltaY=" + deltaY);
-                
-                // Update player position
-                int oldX = player.getX();
-                int oldY = player.getY();
-                int newX = oldX + deltaX;
-                int newY = oldY + deltaY;
-                
-                Logger.debug("  Movement: (" + oldX + "," + oldY + ") + (" + 
-                           deltaX + "," + deltaY + ") = (" + newX + "," + newY + ")");
-                
-                player.setX((short) newX);
-                player.setY((short) newY);
-                player.setWalking(true);
-                
-                Logger.debug("Player " + player.getUsername() + " walked: " +
-                           "(" + oldX + "," + oldY + ") -> (" + newX + "," + newY + ")");
-                
-                // Send position update to the player
-                CL_WalkHandler.sendPositionUpdate(player);
-                
-                // TODO: Broadcast to nearby players
-                
             } catch (Exception e) {
-                Logger.error("Error processing movement for " + player.getUsername() + ": " + e.getMessage());
+                Logger.error("Error processing tick for " + player.getUsername() + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }
+        
+        // === PHASE 2: Send region updates to ALL players ===
+        Logger.info("  Sending region updates to " + playerCount + " players");
+        
+        for (Player player : world.getAllPlayers()) {
+            try {
+                Logger.info("    Calling sendRegionPlayersUpdate for " + player.getUsername());
+                CL_WalkHandler.sendRegionPlayersUpdate(player);
+            } catch (Exception e) {
+                Logger.error("Error sending region update to " + player.getUsername() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    /**
+     * Update nearby players tracking (based on server-js updateNearby).
+     * This detects:
+     * - Players who are now out of range (add to removed)
+     * - Players who are now in range (add to added)
+     */
+    private void updateNearbyPlayers(Player player) {
+        GameWorld world = GameWorld.getInstance();
+        
+        // Check if any known players are now out of range
+        for (Player knownPlayer : new ArrayList<>(player.getKnownPlayers())) {
+            int distance = Math.max(
+                Math.abs(knownPlayer.getX() - player.getX()),
+                Math.abs(knownPlayer.getY() - player.getY())
+            );
+            
+            if (distance > 16) {
+                player.getRemovedPlayers().add(knownPlayer);
+                Logger.debug(player.getUsername() + ": " + knownPlayer.getUsername() + " out of range");
+            }
+        }
+        
+        // Check for new players in range
+        for (Player nearbyPlayer : world.getNearbyPlayers(player.getX(), player.getY(), 16)) {
+            if (nearbyPlayer != player && !player.getKnownPlayers().contains(nearbyPlayer)) {
+                player.getAddedPlayers().add(nearbyPlayer);
+                Logger.debug(player.getUsername() + ": " + nearbyPlayer.getUsername() + " now in range");
+            }
+        }
+    }
+    
+    /**
+     * Calculate direction (0-7) from movement delta.
+     * 
+     * Direction encoding:
+     * 0 = North (Y-)
+     * 1 = Northeast (X+, Y-)
+     * 2 = East (X+)
+     * 3 = Southeast (X+, Y+)
+     * 4 = South (Y+)
+     * 5 = Southwest (X-, Y+)
+     * 6 = West (X-)
+     * 7 = Northwest (X-, Y-)
+     */
+    private int calculateDirection(int deltaX, int deltaY) {
+        if (deltaX == 0 && deltaY < 0) return 0; // North
+        if (deltaX > 0 && deltaY < 0) return 1;  // Northeast
+        if (deltaX > 0 && deltaY == 0) return 2; // East
+        if (deltaX > 0 && deltaY > 0) return 3;  // Southeast
+        if (deltaX == 0 && deltaY > 0) return 4; // South
+        if (deltaX < 0 && deltaY > 0) return 5;  // Southwest
+        if (deltaX < 0 && deltaY == 0) return 6; // West
+        if (deltaX < 0 && deltaY < 0) return 7;  // Northwest
+        return 0; // Default to North if no movement
     }
     
     public long getTickCount() {

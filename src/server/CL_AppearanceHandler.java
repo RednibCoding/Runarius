@@ -29,7 +29,14 @@ public class CL_AppearanceHandler implements IPacketHandler {
             
             Logger.info(player.getUsername() + " changed appearance");
             
-            // TODO: Broadcast appearance update to nearby players
+            for (Player viewer : GameWorld.getInstance().getAllPlayers()) {
+                if (viewer == null) {
+                    continue;
+                }
+                if (viewer == player || viewer.getKnownPlayers().contains(player) || viewer.getAddedPlayers().contains(player)) {
+                    PlayerPacketSender.sendAppearance(viewer, player);
+                }
+            }
             
         } catch (Exception ex) {
             Logger.error("Appearance error: " + ex.getMessage());

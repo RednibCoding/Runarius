@@ -1,8 +1,10 @@
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 /**
  * Represents a connected player in the game world.
@@ -17,6 +19,14 @@ public class Player {
     private String username;
     private long usernameHash;
     private int serverId;
+    
+    // Multiplayer tracking (based on server-js LocalEntities pattern)
+    // These track which players this player currently knows about
+    private Set<Player> knownPlayers = new HashSet<>();      // Currently visible players
+    private Set<Player> addedPlayers = new HashSet<>();      // New players this tick
+    private Set<Player> removedPlayers = new HashSet<>();    // Players leaving this tick
+    private Set<Player> movedPlayers = new HashSet<>();      // Players that moved this tick
+    private int direction = 0;  // Current facing direction (0-7)
     
     // Position
     private int x;
@@ -357,7 +367,7 @@ public class Player {
         return (int) Math.floor(combatLevel);
     }
     
-    // ===== Movement Methods =====
+        // ===== Movement Methods =====
     
     public Queue<int[]> getWalkQueue() {
         return walkQueue;
@@ -377,10 +387,37 @@ public class Player {
     }
     
     public void setWalking(boolean walking) {
-        isWalking = walking;
+        this.isWalking = walking;
     }
     
     public boolean hasWalkSteps() {
         return !walkQueue.isEmpty();
+    }
+    
+    // ===== Multiplayer Tracking Methods =====
+    // Based on server-js LocalEntities pattern
+    
+    public Set<Player> getKnownPlayers() {
+        return knownPlayers;
+    }
+    
+    public Set<Player> getAddedPlayers() {
+        return addedPlayers;
+    }
+    
+    public Set<Player> getRemovedPlayers() {
+        return removedPlayers;
+    }
+    
+    public Set<Player> getMovedPlayers() {
+        return movedPlayers;
+    }
+    
+    public int getDirection() {
+        return direction;
+    }
+    
+    public void setDirection(int direction) {
+        this.direction = direction;
     }
 }

@@ -243,7 +243,6 @@ public class GameConnection extends GameShell {
                 short opcodeValue = headerBuffer.getShort();
     
                 Opcodes.Server opcode = Opcodes.Server.valueOf(opcodeValue);
-                Logger.debug("Received packet: " + opcode + " (opcode=" + opcodeValue + ", length=" + length + ")");
     
                 // Ensure that the full packet data is available
                 if (inStream.available() >= length - 4) {
@@ -253,7 +252,6 @@ public class GameConnection extends GameShell {
                     IClientPacketHandler handler = ClientSidePacketHandlers.getHandlerByOpcode(opcodeValue);
     
                     if (handler != null) {
-                        Logger.debug("Using registered handler for " + opcode);
                         // For new handlers, pass data without opcode prefix
                         Buffer data = new Buffer(rawDataBuffer);
                         handler.handle(this, socket, data);
@@ -261,7 +259,6 @@ public class GameConnection extends GameShell {
                         // TODO: REMOVE THIS - Temporary fallback to old packet handling
                         // Once all packets have handlers registered in ClientSidePacketHandlers,
                         // remove this else block and the entire mudclient.handleIncomingPacket() method.
-                        Logger.debug("Passing " + opcode + " to mudclient.handleIncomingPacket()");
                         
                         // Old mudclient code expects pdata[0] to be the opcode byte
                         // Create new buffer with opcode at index 0

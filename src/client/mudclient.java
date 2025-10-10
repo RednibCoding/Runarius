@@ -5847,22 +5847,14 @@ public class mudclient extends GameConnection {
                 int anim = Utility.getBitMask(pdata, k7, 4);
                 k7 += 4;
                 
-                Logger.debug("SV_REGION_PLAYERS: received absolute coords X=" + localRegionX + " Y=" + localRegionY);
-                Logger.debug("  Current regionX=" + regionX + " regionY=" + regionY);
-                
                 boolean flag1 = loadNextRegion(localRegionX, localRegionY);
-                
-                Logger.debug("  After loadNextRegion: regionX=" + regionX + " regionY=" + regionY + " (changed=" + flag1 + ")");
                 
                 localRegionX -= regionX;
                 localRegionY -= regionY;
                 
-                Logger.debug("  Relative coords: localRegionX=" + localRegionX + " localRegionY=" + localRegionY);
-                
                 int l22 = localRegionX * magicLoc + 64;
                 int l25 = localRegionY * magicLoc + 64;
                 
-                Logger.debug("  Final pixel coords: X=" + l22 + " Y=" + l25);
                 if (flag1) {
                     localPlayer.waypointCurrent = 0;
                     localPlayer.movingStep = 0;
@@ -5871,8 +5863,10 @@ public class mudclient extends GameConnection {
                 }
                 playerCount = 0;
                 localPlayer = createPlayer(localPlayerServerIndex, l22, l25, anim);
+                System.out.println(">>> BEFORE KNOWN COUNT: k7=" + k7);
                 int i29 = Utility.getBitMask(pdata, k7, 8);
                 k7 += 8;
+                System.out.println(">>> KNOWN COUNT: " + i29 + ", k7 now=" + k7);
                 for (int l33 = 0; l33 < i29; l33++) {
                     GameCharacter character_3 = knownPlayers[l33 + 1];
                     int reqUpdate = Utility.getBitMask(pdata, k7, 1);
@@ -5912,7 +5906,9 @@ public class mudclient extends GameConnection {
                 }
 
                 int count = 0;
-                while (k7 + 24 < psize * 8) {
+                System.out.println(">>> NEW PLAYERS LOOP: k7=" + k7 + ", psize=" + psize + ", check=" + (k7 + 26) + " <= " + (psize * 8));
+                while (k7 + 26 <= psize * 8) {
+                    System.out.println("  ITERATION " + (count + 1) + ": Reading new player at bit " + k7);
                     int serverIndex = Utility.getBitMask(pdata, k7, 11);
                     k7 += 11;
                     int areaX = Utility.getBitMask(pdata, k7, 5);
@@ -5925,24 +5921,33 @@ public class mudclient extends GameConnection {
                         areaY -= 32;
                     int animation = Utility.getBitMask(pdata, k7, 4);
                     k7 += 4;
+                    System.out.println("    serverIndex=" + serverIndex + ", offset=(" + areaX + "," + areaY + "), anim=" + animation);
                     int i44 = Utility.getBitMask(pdata, k7, 1);
                     k7++;
                     int x = (localRegionX + areaX) * magicLoc + 64;
                     int y = (localRegionY + areaY) * magicLoc + 64;
+                    System.out.println("    Creating player at (" + x + "," + y + "), serverIndex=" + serverIndex);
                     createPlayer(serverIndex, x, y, animation);
-                    if (i44 == 0)
-                        playerServerIndexes[count++] = serverIndex;
+                    if (i44 == 0) {
+                        System.out.println("    Storing in playerServerIndexes[" + count + "]");
+                        playerServerIndexes[count] = serverIndex;
+                    }
+                    count++;
                 }
+                System.out.println(">>> After loop: count=" + count);
                 if (count > 0) {
+                    System.out.println(">>> Sending CL_KNOWN_PLAYERS packet: count=" + count);
                     super.clientStream.newPacket(Opcodes.Client.CL_KNOWN_PLAYERS.value);
                     super.clientStream.putShort(count);
                     for (int i = 0; i < count; i++) {
+                        System.out.println("    Player " + i + ": serverIndex=" + playerServerIndexes[i]);
                         GameCharacter c = playerServer[playerServerIndexes[i]];
                         super.clientStream.putShort(c.serverIndex);
                         super.clientStream.putShort(c.serverId);
                     }
 
                     super.clientStream.sendPacket();
+                    System.out.println(">>> CL_KNOWN_PLAYERS packet sent");
                     count = 0;
                 }
                 return;
