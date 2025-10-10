@@ -98,11 +98,17 @@ public class GameTick {
                 int deltaX = step[0];
                 int deltaY = step[1];
                 
+                Logger.debug("Processing step for " + player.getUsername() + 
+                           ": deltaX=" + deltaX + ", deltaY=" + deltaY);
+                
                 // Update player position
                 int oldX = player.getX();
                 int oldY = player.getY();
                 int newX = oldX + deltaX;
                 int newY = oldY + deltaY;
+                
+                Logger.debug("  Movement: (" + oldX + "," + oldY + ") + (" + 
+                           deltaX + "," + deltaY + ") = (" + newX + "," + newY + ")");
                 
                 player.setX((short) newX);
                 player.setY((short) newY);

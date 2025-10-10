@@ -51,12 +51,28 @@ public class CL_WalkHandler implements IPacketHandler {
                 currentY = startY;
             }
             
-            // Then add the path steps from the client
+            // Then process the path steps from the client
+            // Each step's delta is CUMULATIVE from the start position (targetX + deltaX)
+            // We need to create smooth steps from current position to each waypoint
             for (int i = 0; i < stepCount; i++) {
                 byte deltaX = data.getByte();
                 byte deltaY = data.getByte();
-                player.addToWalkQueue(deltaX, deltaY);
-                Logger.debug("  Step " + i + ": delta=(" + deltaX + "," + deltaY + ")");
+                Logger.debug("  Raw step " + i + ": deltaX=" + deltaX + " (0x" + 
+                           String.format("%02X", deltaX) + "), deltaY=" + deltaY + 
+                           " (0x" + String.format("%02X", deltaY) + ")");
+                
+                // Calculate target position for this waypoint (cumulative delta from start)
+                int waypointX = startX + deltaX;
+                int waypointY = startY + deltaY;
+                
+                Logger.debug("  Waypoint " + i + ": (" + waypointX + "," + waypointY + ")");
+                
+                // Create smooth steps from current position to this waypoint
+                createStraightLineSteps(player, currentX, currentY, waypointX, waypointY);
+                
+                // Update current position for next waypoint
+                currentX = waypointX;
+                currentY = waypointY;
             }
             
             Logger.info("Queued " + player.getWalkQueue().size() + " total walk steps for " + player.getUsername());
