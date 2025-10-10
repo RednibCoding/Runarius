@@ -15,7 +15,79 @@
 
 ## Critical Architecture Information
 
-### 1. Client-Server Protocol
+### 1. PACKET FORMAT MIGRATION (CRITICAL!)
+
+**⚠️ THE MOST IMPORTANT THING TO UNDERSTAND ⚠️**
+
+The project is migrating from OLD packet format to NEW packet format. These are **INCOMPATIBLE**!
+
+**OLD Format (Legacy `Packet_` / `ClientStream`):**
+```
+[2 bytes] Length (big-endian, includes opcode + data)
+[1 byte]  Opcode
+[N bytes] Data
+```
+- Used by: All legacy in-game packets sent via `clientStream.newPacket()`
+- Problem: Server expects 2-byte opcodes, reads wrong data!
+
+**NEW Format (`Buffer` class):**
+```
+[2 bytes] Length (big-endian, includes opcode + data)
+[2 bytes] Opcode (big-endian short)
+[N bytes] Data
+```
+- Used by: Session, Login, and NEW migrated packets
+- Format produced by: `Buffer.toArrayWithLen()`
+- Server expects: This format in `ClientHandler`
+
+**MIGRATION STRATEGY (DO THIS FOR EVERY PACKET):**
+
+1. **Client-side:** Create new `send*Packet()` method in `GameConnection.java`:
+   ```java
+   protected void sendWalkPacket(int targetX, int targetY, byte[] walkPath, int stepCount, boolean isAction) {
+       Buffer out = new Buffer();
+       out.putShort(Opcodes.Client.CL_WALK.value);  // 2-byte opcode!
+       out.putShort((short) targetX);
+       out.putShort((short) targetY);
+       out.put(walkPath, 0, stepCount * 2);
+       
+       OutputStream outputStream = socket.getOutputStream();
+       outputStream.write(out.toArrayWithLen());  // NEW format!
+       outputStream.flush();
+   }
+   ```
+
+2. **Client-side:** Replace OLD calls in `mudclient.java`:
+   ```java
+   // OLD (DELETE THIS):
+   super.clientStream.newPacket(Opcodes.Client.CL_WALK.value);
+   super.clientStream.putShort(targetX);
+   super.clientStream.putShort(targetY);
+   super.clientStream.sendPacket();
+   
+   // NEW (USE THIS):
+   sendWalkPacket(targetX, targetY, walkPath, stepCount, false);
+   ```
+
+3. **Server-side:** Handler in `ServerSidePacketHandlers` works automatically!
+   ```java
+   // Already registered - no changes needed
+   packetHandlers.put(Opcodes.Client.CL_WALK, new CL_WalkHandler()::handle);
+   ```
+
+**NEVER:**
+- ❌ Mix old and new packet formats in same connection
+- ❌ Try to "convert" packets in `ClientHandler` - migrate at source!
+- ❌ Use `clientStream.newPacket()` for new code - use `Buffer` instead!
+- ❌ Forget to flush output stream after sending
+
+**DO:**
+- ✅ Migrate one packet type at a time
+- ✅ Test each migration thoroughly
+- ✅ Eventually delete `ClientStream` and `Packet_` entirely
+- ✅ Document each migrated packet
+
+### 2. Client-Server Protocol
 
 **Wire Format - All packets:**
 ```
@@ -29,7 +101,21 @@
 - Legacy `mudclient.handleIncomingPacket()` expects data WITH opcode at `pdata[0]`
 - `GameConnection.handlePacket()` adds opcode byte for backward compatibility
 
-### 2. Dual Handler System (IMPORTANT!)
+### 2. Client-Server Protocol
+
+**Wire Format - All packets:**
+```
+[2 bytes] Total packet length (includes these 2 bytes)
+[2 bytes] Opcode (packet type identifier)
+[N bytes] Packet data
+```
+
+**CRITICAL:** Old packet handlers expect `pdata[0]` to contain the opcode byte!
+- Modern handlers receive data WITHOUT opcode prefix
+- Legacy `mudclient.handleIncomingPacket()` expects data WITH opcode at `pdata[0]`
+- `GameConnection.handlePacket()` adds opcode byte for backward compatibility
+
+### 3. Dual Handler System (IMPORTANT!)
 
 The codebase is transitioning from old to new packet handling:
 
@@ -48,7 +134,7 @@ The codebase is transitioning from old to new packet handling:
 3. DO NOT modify old handlers - create new ones instead
 4. Eventually, remove all old handler code
 
-### 3. Bit-Packed Data (COMPLEX!)
+### 4. Bit-Packed Data (COMPLEX!)
 
 Some packets use **bit-packing** instead of byte alignment:
 
@@ -66,7 +152,7 @@ localRegionX = Utility.getBitMask(pdata, k7, 11);
 
 **CRITICAL:** Server writes at bit 0, client reads at bit 8 due to opcode byte!
 
-### 4. Buffer Class Usage
+### 5. Buffer Class Usage
 
 **Server-side packet building:**
 ```java
@@ -85,7 +171,7 @@ player.getSocket().getOutputStream().flush();
 - Forget to flush the output stream
 - Reuse Buffer objects without resetting
 
-### 5. Coordinate System
+### 6. Coordinate System
 
 **World Coordinates:**
 - Full world: 944 x 944 tiles
@@ -105,7 +191,7 @@ Examples:
   m14949 = Plane 1, Section 49, Section 49
 ```
 
-### 6. Player Appearance System
+### 7. Player Appearance System
 
 **Equipment Slots (12 total):**
 ```
@@ -125,7 +211,7 @@ Slot 8-11: Additional equipment
 - Equipment values are sprite/animation IDs, not item IDs
 - Value 0 = nothing equipped in that slot
 
-### 7. JAG File System
+### 8. JAG File System
 
 **Data Files:**
 - `land63.jag` - Terrain/landscape data
@@ -140,7 +226,7 @@ Slot 8-11: Additional equipment
 - Loaded via `GameData.loadJag()`
 - Contains multiple entries indexed by name
 
-### 8. Opcodes Enum
+### 9. Opcodes Enum
 
 **Located in:** `src/common/Opcodes.java`
 
