@@ -14,8 +14,7 @@ public class CL_SessionHandler implements IPacketHandler {
             // Create player object for this session
             Player player = new Player(socket, username, sessionId);
             
-            // Add to pending players (will be moved to active players on login)
-            GameWorld.getInstance().addPendingPlayer(player);
+            ServerContext.get().getPlayers().registerPending(player);
             
             Buffer out = new Buffer();
             out.putLong(sessionId);

@@ -1,4 +1,3 @@
-import java.io.IOException;
 import java.net.Socket;
 
 /**
@@ -11,7 +10,8 @@ public class CL_CombatStyleHandler implements IPacketHandler {
             byte style = data.getByte();
             
             // Find the player by socket
-            Player player = findPlayerBySocket(socket);
+            PlayerRepository players = ServerContext.get().getPlayers();
+            Player player = players.findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Combat style: player not found for socket");
                 return;
@@ -26,12 +26,4 @@ public class CL_CombatStyleHandler implements IPacketHandler {
         }
     }
     
-    private Player findPlayerBySocket(Socket socket) {
-        for (Player p : GameWorld.getInstance().getAllPlayers()) {
-            if (p.getSocket() == socket) {
-                return p;
-            }
-        }
-        return null;
-    }
 }

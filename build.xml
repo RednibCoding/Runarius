@@ -37,7 +37,10 @@
 
     <!-- Compile server classes with common classes in classpath -->
     <target name="compile-server" depends="compile-common">
-        <javac srcdir="${src.dir}/server" destdir="${build.dir}/server" includeantruntime="false" encoding="UTF-8">
+        <javac destdir="${build.dir}/server" includeantruntime="false" encoding="UTF-8">
+            <src path="${src.dir}/server" />
+            <exclude name="handler/**" />
+            <src path="${src.dir}/server/handler" />
             <classpath>
                 <pathelement path="${build.dir}/common"/>
             </classpath>

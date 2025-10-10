@@ -11,7 +11,8 @@ public class CL_IgnoreAddHandler implements IPacketHandler {
             long usernameHash = data.getLong();
             
             // Find the player by socket
-            Player player = findPlayerBySocket(socket);
+            PlayerRepository players = ServerContext.get().getPlayers();
+            Player player = players.findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Ignore add: player not found for socket");
                 return;
@@ -34,15 +35,6 @@ public class CL_IgnoreAddHandler implements IPacketHandler {
         } catch (IOException ex) {
             Logger.error("Ignore add error: " + ex.getMessage());
         }
-    }
-    
-    private Player findPlayerBySocket(Socket socket) {
-        for (Player p : GameWorld.getInstance().getAllPlayers()) {
-            if (p.getSocket() == socket) {
-                return p;
-            }
-        }
-        return null;
     }
     
     private void sendIgnoreList(Player player) throws IOException {

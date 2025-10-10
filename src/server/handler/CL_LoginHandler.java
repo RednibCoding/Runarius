@@ -1,28 +1,29 @@
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.List;
 
 public class CL_LoginHandler implements IPacketHandler {
     @Override
     public void handle(Socket socket, Buffer data) {
         try {
-            InputStream inStream = socket.getInputStream();
+            ServerContext context = ServerContext.get();
+            PlayerRepository players = context.getPlayers();
+            WorldService world = context.getWorldService();
+            VisibilityService visibility = context.getVisibilityService();
+
             OutputStream outStream = socket.getOutputStream();
             
             int clientVersion = data.getInt();
             long sessionId = data.getLong();
             String username = data.getString();
-            String password = data.getString();
+            data.getString(); // password - TODO: validate credentials
 
             Logger.info("Login attempt: " + username + " (session: " + sessionId + ", version: " + clientVersion + ")");
 
             // TODO: Validate credentials against database
             // For now, accept all logins
             
-            // Get pending player by session ID
-            Player player = GameWorld.getInstance().getPendingPlayer(sessionId);
+            Player player = players.consumePending(sessionId).orElse(null);
             
             if (player == null) {
                 Logger.error("No pending session found for " + username + " (session: " + sessionId + ")");
@@ -36,12 +37,9 @@ public class CL_LoginHandler implements IPacketHandler {
             
             Logger.info("Found pending player: " + player.getUsername());
             
-            // Add player to world
-            GameWorld.getInstance().addPlayer(player);
-            
-            // Detect nearby players (based on server-js login flow)
-            // This populates the addedPlayers set for the first region packet
-            updateNearbyPlayers(player);
+            world.spawnPlayer(player);
+            players.addPlayer(player);
+            visibility.establishMutualVisibility(player);
             
             Logger.info("Login: " + player.getUsername() + " has " + 
                        player.getAddedPlayers().size() + " nearby players");
@@ -101,10 +99,10 @@ public class CL_LoginHandler implements IPacketHandler {
         Buffer out = new Buffer();
         out.putShort(Opcodes.Server.SV_WORLD_INFO.value);
         out.putShort((short) player.getServerId());
-        out.putShort((short) GameWorld.getInstance().getPlaneWidth());
-        out.putShort((short) GameWorld.getInstance().getPlaneHeight());
+    out.putShort((short) ServerContext.get().getWorldService().getWorldWidth());
+    out.putShort((short) ServerContext.get().getWorldService().getWorldHeight());
         out.putShort((short) player.getPlaneIndex());
-        out.putShort((short) GameWorld.getInstance().getPlaneMultiplier());
+    out.putShort((short) ServerContext.get().getWorldService().getPlaneMultiplier());
         
         player.getSocket().getOutputStream().write(out.toArrayWithLen());
         player.getSocket().getOutputStream().flush();
@@ -159,7 +157,7 @@ public class CL_LoginHandler implements IPacketHandler {
         
         for (long friendHash : player.getFriendList()) {
             out.putLong(friendHash);
-            out.putByte((byte) (GameWorld.getInstance().isPlayerOnline(friendHash) ? 1 : 0));
+            out.putByte((byte) (ServerContext.get().getPlayers().isOnline(friendHash) ? 1 : 0));
         }
         
         player.getSocket().getOutputStream().write(out.toArrayWithLen());
@@ -240,25 +238,4 @@ public class CL_LoginHandler implements IPacketHandler {
         Logger.debug("Sent region NPCs data");
     }
     
-    /**
-     * Update nearby players during login (based on server-js updateNearby).
-     * Detects all players currently in range and adds them to addedPlayers set.
-     */
-    private void updateNearbyPlayers(Player player) {
-        GameWorld world = GameWorld.getInstance();
-        
-        // Find all nearby players
-        for (Player nearbyPlayer : world.getNearbyPlayers(player.getX(), player.getY(), 16)) {
-            if (nearbyPlayer != player) {
-                // Add to this player's added set
-                player.getAddedPlayers().add(nearbyPlayer);
-                
-                // ALSO add this player to the nearby player's added set
-                // (mutual visibility)
-                nearbyPlayer.getAddedPlayers().add(player);
-                
-                Logger.info("Login: Mutual add " + player.getUsername() + " <-> " + nearbyPlayer.getUsername());
-            }
-        }
-    }
 }

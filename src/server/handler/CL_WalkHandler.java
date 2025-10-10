@@ -21,8 +21,11 @@ public class CL_WalkHandler implements IPacketHandler {
             short startX = data.getShort();
             short startY = data.getShort();
             
-            // Get player by socket
-            Player player = GameWorld.getInstance().getPlayerBySocket(socket);
+                ServerContext context = ServerContext.get();
+                PlayerRepository players = context.getPlayers();
+
+                // Get player by socket
+                Player player = players.findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Walk packet from unknown player");
                 return;

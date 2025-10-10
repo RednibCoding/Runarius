@@ -11,7 +11,9 @@ public class CL_FriendAddHandler implements IPacketHandler {
             long usernameHash = data.getLong();
             
             // Find the player by socket
-            Player player = findPlayerBySocket(socket);
+            ServerContext context = ServerContext.get();
+            PlayerRepository players = context.getPlayers();
+            Player player = players.findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Friend add: player not found for socket");
                 return;
@@ -27,7 +29,7 @@ public class CL_FriendAddHandler implements IPacketHandler {
             player.getFriendList().add(usernameHash);
             
             // Send updated friend list
-            sendFriendList(player);
+            sendFriendList(context, player);
             
             Logger.info(player.getUsername() + " added friend: " + usernameHash);
             
@@ -36,23 +38,14 @@ public class CL_FriendAddHandler implements IPacketHandler {
         }
     }
     
-    private Player findPlayerBySocket(Socket socket) {
-        for (Player p : GameWorld.getInstance().getAllPlayers()) {
-            if (p.getSocket() == socket) {
-                return p;
-            }
-        }
-        return null;
-    }
-    
-    private void sendFriendList(Player player) throws IOException {
+    private void sendFriendList(ServerContext context, Player player) throws IOException {
         Buffer out = new Buffer();
         out.putShort(Opcodes.Server.SV_FRIEND_LIST.value);
         out.putByte((byte) player.getFriendList().size());
         
         for (long friendHash : player.getFriendList()) {
             out.putLong(friendHash);
-            out.putByte((byte) (GameWorld.getInstance().isPlayerOnline(friendHash) ? 1 : 0));
+            out.putByte((byte) (context.getPlayers().isOnline(friendHash) ? 1 : 0));
         }
         
         player.getSocket().getOutputStream().write(out.toArrayWithLen());

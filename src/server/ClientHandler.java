@@ -2,71 +2,97 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
 public class ClientHandler implements Runnable {
-    private Socket socket;
+    private final ServerContext context;
+    private final Socket socket;
+    private final PacketDispatcher dispatcher;
 
-    public ClientHandler(Socket socket) {
+    public ClientHandler(ServerContext context, Socket socket) {
+        this.context = context;
         this.socket = socket;
+        this.dispatcher = context.getPacketDispatcher();
     }
 
     @Override
     public void run() {
         try (InputStream inputStream = socket.getInputStream(); OutputStream outputStream = socket.getOutputStream()) {
-            Logger.info("ClientHandler started for connection: " + socket.getRemoteSocketAddress());
-            int loopCount = 0;
-            
-            while (true) {
-                loopCount++;
-                if (loopCount % 100 == 0) {
-                    Logger.debug("ClientHandler loop iteration: " + loopCount);
+            Logger.info("ClientHandler started for " + socket.getRemoteSocketAddress());
+
+            while (!socket.isClosed()) {
+                short length = readShort(inputStream);
+                short opcode = readShort(inputStream);
+
+                if (length <= 0) {
+                    Logger.warn("Invalid packet length " + length + " from " + socket.getRemoteSocketAddress());
+                    break;
                 }
-                
-                // Check if at least 4 bytes are available to read the length and opcode
-                if (inputStream.available() >= 4) {
-                    byte[] lengthOpcodeBuffer = inputStream.readNBytes(4);
-                    ByteBuffer headerBuffer = ByteBuffer.wrap(lengthOpcodeBuffer);
-                    short length = headerBuffer.getShort();
-                    short opcode = headerBuffer.getShort();
 
-                    Logger.info(">>> Packet received: opcode=" + opcode + ", length=" + length + ", dataLength=" + (length - 2));
+                byte[] payload = readFully(inputStream, length - 2);
+                if (payload == null) {
+                    Logger.warn("Connection closed while reading payload from " + socket.getRemoteSocketAddress());
+                    break;
+                }
 
-                    // Ensure that the full packet data is available
-                    if (inputStream.available() >= length - 4) {
-                        byte[] dataBuffer = inputStream.readNBytes(length - 2); // read length without opcode bytes (2)
-                        Buffer data = new Buffer(dataBuffer);
+                Logger.debug(">>> Packet received: opcode=" + opcode + ", length=" + length);
 
-                        IPacketHandler handler = ServerSidePacketHandlers.getHandlerByOpcode(opcode);
+                Buffer data = new Buffer(payload);
+                IPacketHandler handler = dispatcher.get(opcode);
+                if (handler == null) {
+                    Logger.warn("No handler registered for opcode=" + opcode);
+                    continue;
+                }
 
-                        if (handler != null) {
-                            Logger.debug("Calling handler for opcode=" + opcode);
-                            handler.handle(socket, data);
-                        } else {
-                            Logger.warn("Unknown opcode: " + opcode + " (length=" + length + ")");
-                        }
-                    } else {
-                        Thread.sleep(50); // Wait for more data to arrive
-                    }
-                } else {
-                    Thread.sleep(50); // Wait for more data to arrive
+                try {
+                    handler.handle(socket, data);
+                } catch (Exception handlerException) {
+                    Logger.error("Handler failure for opcode=" + opcode + ": " + handlerException.getMessage());
+                    handlerException.printStackTrace();
                 }
             }
         } catch (IOException ex) {
-            System.out.println("Client disconnected or connection reset: " + ex.getMessage());
-        } catch (BufferUnderflowException ex) {
-            System.out.println("Got invalid packet: " + ex.getMessage());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            System.out.println("Thread interrupted: " + ex.getMessage());
+            Logger.warn("Client disconnected: " + ex.getMessage());
         } finally {
-            try {
-                socket.close();
-            } catch (IOException ex) {
-                System.out.println("Failed to close socket: " + ex.getMessage());
-            }
-            System.out.println("Client disconnected");
+            cleanup();
         }
+    }
+
+    private short readShort(InputStream inputStream) throws IOException {
+        byte[] bytes = readFully(inputStream, 2);
+        if (bytes == null) {
+            throw new IOException("Unexpected end of stream");
+        }
+        return ByteBuffer.wrap(bytes).getShort();
+    }
+
+    private byte[] readFully(InputStream inputStream, int length) throws IOException {
+        byte[] buffer = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            int read = inputStream.read(buffer, offset, length - offset);
+            if (read == -1) {
+                return null;
+            }
+            offset += read;
+        }
+        return buffer;
+    }
+
+    private void cleanup() {
+        try {
+            socket.close();
+        } catch (IOException ex) {
+            Logger.warn("Failed to close socket: " + ex.getMessage());
+        }
+
+        PlayerRepository players = context.getPlayers();
+        players.findBySocket(socket).ifPresent(player -> {
+            context.getVisibilityService().handlePlayerRemoval(player);
+            players.removePlayer(player);
+        });
+
+        players.findPendingBySocket(socket).ifPresent(players::removePending);
+        Logger.info("Client disconnected: " + socket.getRemoteSocketAddress());
     }
 }

@@ -14,7 +14,8 @@ public class CL_PrivacySettingsHandler implements IPacketHandler {
             byte blockDuels = data.getByte();
             
             // Find the player by socket
-            Player player = findPlayerBySocket(socket);
+            PlayerRepository players = ServerContext.get().getPlayers();
+            Player player = players.findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Privacy settings: player not found for socket");
                 return;
@@ -34,15 +35,6 @@ public class CL_PrivacySettingsHandler implements IPacketHandler {
         } catch (IOException ex) {
             Logger.error("Privacy settings error: " + ex.getMessage());
         }
-    }
-    
-    private Player findPlayerBySocket(Socket socket) {
-        for (Player p : GameWorld.getInstance().getAllPlayers()) {
-            if (p.getSocket() == socket) {
-                return p;
-            }
-        }
-        return null;
     }
     
     private void sendPrivacySettings(Player player) throws IOException {

@@ -1,4 +1,3 @@
-import java.io.IOException;
 import java.net.Socket;
 
 /**
@@ -9,7 +8,8 @@ public class CL_LogoutHandler implements IPacketHandler {
     public void handle(Socket socket, Buffer data) {
         try {
             // Find the player by socket
-            Player player = findPlayerBySocket(socket);
+            ServerContext context = ServerContext.get();
+            Player player = context.getPlayers().findBySocket(socket).orElse(null);
             if (player == null) {
                 Logger.error("Logout: player not found for socket");
                 return;
@@ -17,8 +17,8 @@ public class CL_LogoutHandler implements IPacketHandler {
             
             Logger.info(player.getUsername() + " is logging out");
             
-            // Remove player from world
-            GameWorld.getInstance().removePlayer(player);
+            context.getVisibilityService().handlePlayerRemoval(player);
+            context.getPlayers().removePlayer(player);
             
             // TODO: Save player data
             
@@ -30,12 +30,4 @@ public class CL_LogoutHandler implements IPacketHandler {
         }
     }
     
-    private Player findPlayerBySocket(Socket socket) {
-        for (Player p : GameWorld.getInstance().getAllPlayers()) {
-            if (p.getSocket() == socket) {
-                return p;
-            }
-        }
-        return null;
-    }
 }
