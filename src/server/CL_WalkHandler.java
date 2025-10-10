@@ -16,7 +16,7 @@ public class CL_WalkHandler implements IPacketHandler {
     @Override
     public void handle(Socket socket, Buffer data) {
         try {
-            // Read starting coordinates (where the player currently is)
+            // Read starting coordinates (where the player currently is according to client)
             short startX = data.getShort();
             short startY = data.getShort();
             
@@ -27,45 +27,42 @@ public class CL_WalkHandler implements IPacketHandler {
                 return;
             }
             
-            int oldX = player.getX();
-            int oldY = player.getY();
-            
             // Read walk path (remaining bytes are delta X,Y pairs)
             int remainingBytes = data.remaining();
             int stepCount = remainingBytes / 2;
             
-            // Calculate final destination by following the path
-            int finalX = startX;
-            int finalY = startY;
-            
-            if (stepCount > 0) {
-                // Read the path steps
-                for (int i = 0; i < stepCount; i++) {
-                    byte deltaX = data.getByte();
-                    byte deltaY = data.getByte();
-                    finalX += deltaX;
-                    finalY += deltaY;
-                }
-            }
-            
             Logger.info("Walk request from " + player.getUsername() + ": " +
-                       "start=(" + startX + "," + startY + ") -> " +
-                       "final=(" + finalX + "," + finalY + ") " +
+                       "client_pos=(" + startX + "," + startY + "), " +
+                       "server_pos=(" + player.getX() + "," + player.getY() + "), " +
                        "steps=" + stepCount);
             
-            // For now, just teleport player to final position
-            // TODO: Implement proper step-by-step movement with animation
-            player.setX((short) finalX);
-            player.setY((short) finalY);
+            // Clear any existing walk queue (new walk command cancels previous)
+            player.clearWalkQueue();
             
-            Logger.info("Position updated: " +
-                       "(" + oldX + "," + oldY + ") -> (" + player.getX() + "," + player.getY() + ")");
+            // First, create steps from server's current position to client's start position
+            // This handles any desync between client and server
+            int currentX = player.getX();
+            int currentY = player.getY();
             
-            // Send position update back to the player so they see themselves move
-            sendPositionUpdate(player);
+            if (currentX != startX || currentY != startY) {
+                Logger.debug("Position desync detected - creating intermediate steps");
+                createStraightLineSteps(player, currentX, currentY, startX, startY);
+                currentX = startX;
+                currentY = startY;
+            }
             
-            // TODO: Broadcast movement to other nearby players
-            // GameWorld.getInstance().broadcastPlayerMovement(player);
+            // Then add the path steps from the client
+            for (int i = 0; i < stepCount; i++) {
+                byte deltaX = data.getByte();
+                byte deltaY = data.getByte();
+                player.addToWalkQueue(deltaX, deltaY);
+                Logger.debug("  Step " + i + ": delta=(" + deltaX + "," + deltaY + ")");
+            }
+            
+            Logger.info("Queued " + player.getWalkQueue().size() + " total walk steps for " + player.getUsername());
+            
+            // Note: Actual movement will be processed by game tick system
+            // Each tick will process one step from the queue and send position updates
             
         } catch (Exception ex) {
             Logger.error("Error handling walk packet: " + ex.getMessage());
@@ -74,13 +71,50 @@ public class CL_WalkHandler implements IPacketHandler {
     }
     
     /**
-     * Send updated position to player using SV_REGION_PLAYERS packet.
-     * This is the same packet sent during login, but with updated coordinates.
+     * Create straight-line walk steps from start to end position.
+     * This handles client-server position desync by creating intermediate steps.
      * 
-     * NOTE: This is a temporary "teleport" solution. Proper movement should use
-     * incremental directional updates encoded in the SV_REGION_PLAYERS packet format.
+     * Based on server-js createSteps() function - can move in straight lines
+     * (only X or Y changing) or perfect diagonals (X and Y changing by same amount).
      */
-    private void sendPositionUpdate(Player player) throws IOException {
+    private void createStraightLineSteps(Player player, int startX, int startY, int endX, int endY) {
+        int totalSteps = Math.abs(endX - startX) + Math.abs(endY - startY);
+        
+        if (totalSteps == 0) {
+            return; // Already at destination
+        }
+        
+        int currentSteps = 0;
+        
+        // Determine movement direction (-1, 0, or 1)
+        int deltaX = startX < endX ? 1 : (startX > endX ? -1 : 0);
+        int deltaY = startY < endY ? 1 : (startY > endY ? -1 : 0);
+        
+        // Check if this is a perfectly diagonal path
+        if (Math.abs(endX - startX) != Math.abs(endY - startY)) {
+            // Not diagonal - move in only one direction
+            if (endX - startX != 0) {
+                deltaY = 0; // Moving in X direction only
+            } else {
+                deltaX = 0; // Moving in Y direction only
+            }
+        }
+        
+        // Add steps to walk queue
+        while (currentSteps < totalSteps) {
+            player.addToWalkQueue(deltaX, deltaY);
+            currentSteps += Math.abs(deltaX) + Math.abs(deltaY);
+        }
+        
+        Logger.debug("Created " + (currentSteps / (Math.abs(deltaX) + Math.abs(deltaY))) + 
+                    " steps from (" + startX + "," + startY + ") to (" + endX + "," + endY + ")");
+    }
+    
+    /**
+     * Send updated position to player using SV_REGION_PLAYERS packet.
+     * Called by the game tick system after each movement step.
+     */
+    public static void sendPositionUpdate(Player player) throws IOException {
         Buffer out = new Buffer();
         out.putShort(Opcodes.Server.SV_REGION_PLAYERS.value);
         

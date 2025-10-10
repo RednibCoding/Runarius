@@ -28,6 +28,9 @@ public class Server {
         // Proceed to run the server if not launched from terminal
         ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
+        // Start the game tick system
+        GameTick.getInstance().start();
+
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server is listening on port " + PORT);
 
@@ -41,6 +44,7 @@ public class Server {
             System.out.println("Server exception: " + ex.getMessage());
             ex.printStackTrace();
         } finally {
+            GameTick.getInstance().stop();
             threadPool.shutdown();
         }
     }

@@ -1,6 +1,8 @@
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * Represents a connected player in the game world.
@@ -20,6 +22,11 @@ public class Player {
     private int x;
     private int y;
     private int planeIndex;
+    
+    // Movement - Queue of coordinate deltas to process
+    // Each step is processed one per game tick for smooth walking
+    private Queue<int[]> walkQueue = new LinkedList<>(); // Each entry: [deltaX, deltaY]
+    private boolean isWalking = false;
     
     // Combat stats (18 total in RSC)
     private int[] currentStats = new int[18];
@@ -348,5 +355,32 @@ public class Player {
         double combatLevel = base + Math.max(melee, Math.max(mage, range));
         
         return (int) Math.floor(combatLevel);
+    }
+    
+    // ===== Movement Methods =====
+    
+    public Queue<int[]> getWalkQueue() {
+        return walkQueue;
+    }
+    
+    public void addToWalkQueue(int deltaX, int deltaY) {
+        walkQueue.offer(new int[] {deltaX, deltaY});
+    }
+    
+    public void clearWalkQueue() {
+        walkQueue.clear();
+        isWalking = false;
+    }
+    
+    public boolean isWalking() {
+        return isWalking;
+    }
+    
+    public void setWalking(boolean walking) {
+        isWalking = walking;
+    }
+    
+    public boolean hasWalkSteps() {
+        return !walkQueue.isEmpty();
     }
 }
