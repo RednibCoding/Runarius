@@ -5846,11 +5846,23 @@ public class mudclient extends GameConnection {
                 k7 += 13;
                 int anim = Utility.getBitMask(pdata, k7, 4);
                 k7 += 4;
+                
+                Logger.debug("SV_REGION_PLAYERS: received absolute coords X=" + localRegionX + " Y=" + localRegionY);
+                Logger.debug("  Current regionX=" + regionX + " regionY=" + regionY);
+                
                 boolean flag1 = loadNextRegion(localRegionX, localRegionY);
+                
+                Logger.debug("  After loadNextRegion: regionX=" + regionX + " regionY=" + regionY + " (changed=" + flag1 + ")");
+                
                 localRegionX -= regionX;
                 localRegionY -= regionY;
+                
+                Logger.debug("  Relative coords: localRegionX=" + localRegionX + " localRegionY=" + localRegionY);
+                
                 int l22 = localRegionX * magicLoc + 64;
                 int l25 = localRegionY * magicLoc + 64;
+                
+                Logger.debug("  Final pixel coords: X=" + l22 + " Y=" + l25);
                 if (flag1) {
                     localPlayer.waypointCurrent = 0;
                     localPlayer.movingStep = 0;

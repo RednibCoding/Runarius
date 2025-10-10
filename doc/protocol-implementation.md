@@ -739,10 +739,17 @@ Plane levels:
 ```
 [2 bytes] Length
 [2 bytes] Opcode (187 for normal walk, 16 for walk-to-action)
-[2 bytes] Target X (absolute world coordinate)
-[2 bytes] Target Y (absolute world coordinate)
-[N pairs] Walk path steps (optional, byte pairs: deltaX, deltaY)
+[2 bytes] Start X (absolute world coordinate - current player position)
+[2 bytes] Start Y (absolute world coordinate - current player position)
+[N pairs] Walk path steps (signed byte pairs: deltaX, deltaY from start)
 ```
+
+**CRITICAL: Packet Data Interpretation**
+- First coordinates are **START position** (where player IS), NOT destination!
+- Walk path contains **relative delta movements** from start position
+- Each delta is a **signed byte** (-128 to +127)
+- Final destination: `finalX = startX + sum(deltaX); finalY = startY + sum(deltaY)`
+- If no path steps, player is already at destination (click on current tile)
 
 **Client Implementation:**
 - Method: `GameConnection.sendWalkPacket()`
@@ -751,26 +758,36 @@ Plane levels:
 - Sends immediately via socket (no buffering)
 
 **Walk Path Format:**
-- Each step is 2 bytes: `[deltaX][deltaY]`
-- Deltas are relative to target position
+- Each step is 2 signed bytes: `[deltaX][deltaY]`
+- Deltas are relative to start position (previous step)
 - Maximum 25 steps per packet
-- Empty path = just move to target directly
+- Empty path = player clicked on current tile (no movement)
 
 **Server Handler:**
 - Handler: `CL_WalkHandler.java`
 - Registered in: `ServerSidePacketHandlers`
-- Updates player position: `player.setX(targetX)`, `player.setY(targetY)`
-- TODO: Implement pathfinding validation
+- Calculates final position by summing all deltas
+- Updates player position: `player.setX(finalX)`, `player.setY(finalY)`
+- Sends `SV_REGION_PLAYERS` back to client with new position
+- TODO: Implement step-by-step movement with animation
 - TODO: Broadcast position to nearby players
 
 **Example Packet:**
 ```java
-// Walk to (1400, 1398) with no path steps
-[0x00, 0x06]              // Length = 6 (opcode + 2 coords)
+// Walk from (1398, 1396) to (1397, 1395) - one step diagonal
+[0x00, 0x08]              // Length = 8 (opcode + 2 coords + 2 deltas)
 [0x00, 0xBB]              // Opcode = 187 (CL_WALK)
-[0x05, 0x78]              // Target X = 1400
-[0x05, 0x76]              // Target Y = 1398
+[0x05, 0x76]              // Start X = 1398
+[0x05, 0x74]              // Start Y = 1396
+[0xFF]                    // Delta X = -1 (signed byte)
+[0xFF]                    // Delta Y = -1 (signed byte)
+// Final position: (1398-1, 1396-1) = (1397, 1395)
 ```
+
+**Current Behavior:**
+- Server instantly teleports player to final calculated position
+- Works correctly for basic movement
+- TODO: Implement smooth step-by-step walking animation
 
 ---
 
