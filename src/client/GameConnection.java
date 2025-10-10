@@ -247,20 +247,28 @@ public class GameConnection extends GameShell {
     
                 // Ensure that the full packet data is available
                 if (inStream.available() >= length - 4) {
-                    byte[] dataBuffer = inStream.readNBytes(length - 2); // read length without length-bytes (2)
+                    byte[] rawDataBuffer = inStream.readNBytes(length - 2); // read length without length-bytes (2)
                     
                     // Try to handle with registered handler first
                     IClientPacketHandler handler = ClientSidePacketHandlers.getHandlerByOpcode(opcodeValue);
     
                     if (handler != null) {
                         Logger.debug("Using registered handler for " + opcode);
-                        Buffer data = new Buffer(dataBuffer);
+                        // For new handlers, pass data without opcode prefix
+                        Buffer data = new Buffer(rawDataBuffer);
                         handler.handle(this, socket, data);
                     } else {
                         // TODO: REMOVE THIS - Temporary fallback to old packet handling
                         // Once all packets have handlers registered in ClientSidePacketHandlers,
                         // remove this else block and the entire mudclient.handleIncomingPacket() method.
                         Logger.debug("Passing " + opcode + " to mudclient.handleIncomingPacket()");
+                        
+                        // Old mudclient code expects pdata[0] to be the opcode byte
+                        // Create new buffer with opcode at index 0
+                        byte[] dataBuffer = new byte[rawDataBuffer.length + 1];
+                        dataBuffer[0] = (byte)(opcodeValue & 0xFF); // Low byte of opcode
+                        System.arraycopy(rawDataBuffer, 0, dataBuffer, 1, rawDataBuffer.length);
+                        
                         handleIncomingPacket(opcode, opcodeValue, dataBuffer.length, dataBuffer);
                     }
                 }

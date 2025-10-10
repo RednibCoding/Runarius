@@ -69,6 +69,9 @@ public class Player {
         
         // Initialize default stats
         initializeStats();
+        
+        // Initialize default appearance
+        initializeAppearance();
     }
     
     private void initializeStats() {
@@ -83,6 +86,17 @@ public class Player {
         baseStats[3] = 10;
         currentStats[3] = 10;
         experience[3] = 1154; // Starting HP experience
+    }
+    
+    private void initializeAppearance() {
+        // Default appearance values (brown hair, green shirt, brown pants, light skin)
+        this.headGender = 1;
+        this.headType = 1;
+        this.bodyGender = 1;
+        this.hairColour = 2;      // Brown
+        this.topColour = 8;       // Green
+        this.bottomColour = 14;   // Brown
+        this.skinColour = 0;      // Light skin
     }
     
     // Getters and setters
