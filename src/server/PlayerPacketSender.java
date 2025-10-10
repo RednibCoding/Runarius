@@ -15,9 +15,10 @@ public final class PlayerPacketSender {
         out.putByte((byte) 5);
         out.putShort((short) target.getServerId());
         out.putLong(target.getUsernameHash());
-        out.putByte((byte) 12);
+        int[] equipment = buildEquipmentSlots(target);
+        out.putByte((byte) equipment.length);
 
-        for (int slotValue : buildEquipmentSlots(target)) {
+        for (int slotValue : equipment) {
             out.putByte((byte) slotValue);
         }
 
@@ -31,18 +32,29 @@ public final class PlayerPacketSender {
         viewer.getSocket().getOutputStream().write(out.toArrayWithLen());
         viewer.getSocket().getOutputStream().flush();
 
-        Logger.debug("Sent appearance of " + target.getUsername() + " to " + viewer.getUsername());
+        Logger.info("Appearance packet for " + target.getUsername() + ": equipment="
+            + java.util.Arrays.toString(equipment)
+            + " hair=" + target.getHairColor()
+            + " top=" + target.getTopColor()
+            + " bottom=" + target.getBottomColor()
+            + " skin=" + target.getSkinColor());
     }
 
     private static int[] buildEquipmentSlots(Player target) {
-        int[] equippedItems = new int[12];
-        equippedItems[0] = 0;
-        equippedItems[1] = target.getHeadType();
-        equippedItems[2] = target.getBodyGender() + 1;
-        equippedItems[3] = target.getBodyGender() + 2;
-        for (int i = 4; i < equippedItems.length; i++) {
-            equippedItems[i] = 0;
+    int[] equippedItems = new int[12];
+
+    int headSprite = target.getHeadType();
+    int bodyBase = target.getBodyGender();
+
+    equippedItems[0] = 0; // cape/back (none)
+    equippedItems[1] = headSprite; // head/hair (already 1-based)
+    equippedItems[2] = bodyBase + 1; // torso sprite offset relative to body index
+    equippedItems[3] = bodyBase + 2; // matching leg sprite for selected body
+
+        for (int slot = 4; slot < equippedItems.length; slot++) {
+            equippedItems[slot] = 0;
         }
+
         return equippedItems;
     }
 }

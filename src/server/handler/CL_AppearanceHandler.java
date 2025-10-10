@@ -29,6 +29,8 @@ public class CL_AppearanceHandler implements IPacketHandler {
 				hairColour, topColour, bottomColour, skinColour);
 
 			Logger.info(player.getUsername() + " changed appearance");
+			Logger.info("Appearance sprites head=" + (headType & 0xFF)
+				+ " body=" + (bodyGender & 0xFF));
 
 			players.forEachOnline(viewer -> {
 				try {

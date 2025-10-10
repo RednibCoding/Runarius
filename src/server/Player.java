@@ -107,9 +107,9 @@ public class Player {
     
     private void initializeAppearance() {
         // Default appearance values (brown hair, green shirt, brown pants, light skin)
-        this.headGender = 1;
-        this.headType = 1;
-        this.bodyGender = 1;
+    this.headGender = 1;
+    this.headType = 1;
+    this.bodyGender = 1;
         this.hairColour = 2;      // Brown
         this.topColour = 8;       // Green
         this.bottomColour = 14;   // Brown
