@@ -28,6 +28,11 @@ public class Player {
     private Set<Player> movedPlayers = new HashSet<>();      // Players that moved this tick
     private int direction = 0;  // Current facing direction (0-7)
     
+    // NPC tracking (which NPCs this player knows about)
+    private Set<Npc> knownNpcs = new HashSet<>();
+    private Set<Npc> addedNpcs = new HashSet<>();
+    private Set<Npc> removedNpcs = new HashSet<>();
+    
     // Position
     private int x;
     private int y;
@@ -411,6 +416,18 @@ public class Player {
     
     public Set<Player> getMovedPlayers() {
         return movedPlayers;
+    }
+    
+    public Set<Npc> getKnownNpcs() {
+        return knownNpcs;
+    }
+    
+    public Set<Npc> getAddedNpcs() {
+        return addedNpcs;
+    }
+    
+    public Set<Npc> getRemovedNpcs() {
+        return removedNpcs;
     }
     
     public int getDirection() {

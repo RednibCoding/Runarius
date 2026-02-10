@@ -24,6 +24,10 @@ public class Server {
         ServerConfig config = ServerConfig.builder().build();
         ServerContext.initialize(config);
         ServerContext context = ServerContext.get();
+
+        // Load world data from doc/rs-data/
+        context.getWorldService().loadData("doc/rs-data");
+
         context.getGameLoop().start();
 
         try (ServerSocket serverSocket = new ServerSocket(config.getPort())) {

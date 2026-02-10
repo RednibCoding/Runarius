@@ -186,14 +186,18 @@ public class GameConnection extends GameShell {
                                                                 
     }
     protected void closeConnection() {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_CLOSE_CONNECTION.value);
+            sendPacket(out);
+        } catch (IOException ex) {
+            // Ignore - we're disconnecting
+        }
         if (clientStream != null) {
             try {
-                clientStream.newPacket(Opcodes.Client.CL_CLOSE_CONNECTION.value);
-                clientStream.sendAndFlushPacket();
                 clientStream.closeStream();
-                clientStream = null;
-            } catch (IOException Ex) {
-            }
+            } catch (Exception ex) {}
+            clientStream = null;
         }
         username = "";
         password = "";
@@ -385,19 +389,29 @@ public class GameConnection extends GameShell {
     }
 
     protected void sendPrivacySettings(int chat, int priv, int trade, int duel) {
-        clientStream.newPacket(Opcodes.Client.CL_SETTINGS_PRIVACY.value);
-        clientStream.putByte(chat);
-        clientStream.putByte(priv);
-        clientStream.putByte(trade);
-        clientStream.putByte(duel);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_SETTINGS_PRIVACY.value);
+            out.putByte((byte) chat);
+            out.putByte((byte) priv);
+            out.putByte((byte) trade);
+            out.putByte((byte) duel);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send privacy settings: " + ex.getMessage());
+        }
     }
 
     protected void ignoreAdd(String s) {
         long l = Utility.username2hash(s);
-        clientStream.newPacket(Opcodes.Client.CL_IGNORE_ADD.value);
-        clientStream.putLong(l);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_IGNORE_ADD.value);
+            out.putLong(l);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send ignore add: " + ex.getMessage());
+        }
         for (int i = 0; i < ignoreListCount; i++)
             if (ignoreList[i] == l)
                 return;
@@ -411,9 +425,14 @@ public class GameConnection extends GameShell {
     }
 
     protected void ignoreRemove(long l) {
-        clientStream.newPacket(Opcodes.Client.CL_IGNORE_REMOVE.value);
-        clientStream.putLong(l);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_IGNORE_REMOVE.value);
+            out.putLong(l);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send ignore remove: " + ex.getMessage());
+        }
         for (int i = 0; i < ignoreListCount; i++)
             if (ignoreList[i] == l) {
                 ignoreListCount--;
@@ -426,10 +445,15 @@ public class GameConnection extends GameShell {
     }
 
     protected void friendAdd(String s) {
-        clientStream.newPacket(Opcodes.Client.CL_FRIEND_ADD.value);
-        clientStream.putLong(Utility.username2hash(s));
-        clientStream.sendPacket();
         long l = Utility.username2hash(s);
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_FRIEND_ADD.value);
+            out.putLong(l);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send friend add: " + ex.getMessage());
+        }
         for (int i = 0; i < friendListCount; i++)
             if (friendListHashes[i] == l)
                 return;
@@ -445,9 +469,14 @@ public class GameConnection extends GameShell {
     }
 
     protected void friendRemove(long l) {
-        clientStream.newPacket(Opcodes.Client.CL_FRIEND_REMOVE.value);
-        clientStream.putLong(l);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_FRIEND_REMOVE.value);
+            out.putLong(l);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send friend remove: " + ex.getMessage());
+        }
         for (int i = 0; i < friendListCount; i++) {
             if (friendListHashes[i] != l)
                 continue;
@@ -464,25 +493,52 @@ public class GameConnection extends GameShell {
     }
 
     protected void sendPrivateMessage(long u, byte buff[], int len) {
-        clientStream.newPacket(Opcodes.Client.CL_PM.value);
-        clientStream.putLong(u);
-        clientStream.putBytes(buff, 0, len);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_PM.value);
+            out.putLong(u);
+            out.put(buff, 0, len);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send private message: " + ex.getMessage());
+        }
     }
 
     protected void sendChatMessage(byte buff[], int len) {
-        clientStream.newPacket(Opcodes.Client.CL_CHAT.value);
-        clientStream.putBytes(buff, 0, len);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_CHAT.value);
+            out.put(buff, 0, len);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send chat message: " + ex.getMessage());
+        }
     }
 
     protected void sendCommandString(String s) {
-        clientStream.newPacket(Opcodes.Client.CL_COMMAND.value);
-        clientStream.putString(s);
-        clientStream.sendPacket();
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_COMMAND.value);
+            out.putString(s);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send command: " + ex.getMessage());
+        }
     }
 
     protected void showLoginScreenStatus(String s, String s1) {
+    }
+
+    /**
+     * Send a packet using the new Buffer format (2-byte opcode).
+     * All packet sends should use this method.
+     */
+    private void sendPacket(Buffer out) throws IOException {
+        if (socket != null && !socket.isClosed()) {
+            OutputStream outputStream = socket.getOutputStream();
+            outputStream.write(out.toArrayWithLen());
+            outputStream.flush();
+        }
     }
 
     protected void method37() {

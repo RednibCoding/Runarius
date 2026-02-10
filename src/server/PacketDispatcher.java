@@ -20,6 +20,8 @@ public final class PacketDispatcher {
         register(Opcodes.Client.CL_SETTINGS_PRIVACY, new CL_PrivacySettingsHandler());
         register(Opcodes.Client.CL_CHAT, new CL_ChatHandler());
 
+        register(Opcodes.Client.CL_COMMAND, new CL_CommandHandler());
+
         register(Opcodes.Client.CL_APPEARANCE, new CL_AppearanceHandler());
         register(Opcodes.Client.CL_COMBAT_STYLE, new CL_CombatStyleHandler());
 

@@ -77,6 +77,19 @@ public final class GameLoop {
                 ex.printStackTrace();
             }
         }
+
+        // Send NPC region updates to all players
+        for (Player player : snapshot) {
+            if (player == null) {
+                continue;
+            }
+
+            try {
+                PlayerPacketSender.sendRegionNpcs(player);
+            } catch (Exception ex) {
+                Logger.error("NPC region update failed for " + player.getUsername() + ": " + ex.getMessage());
+            }
+        }
     }
 
     private boolean processMovement(Player player) {

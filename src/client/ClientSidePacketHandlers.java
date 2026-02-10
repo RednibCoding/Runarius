@@ -34,10 +34,12 @@ public class ClientSidePacketHandlers {
         // NOTE: SV_REGION_PLAYERS is handled directly in mudclient.java, not here!
         // TODO: Create proper handler for SV_REGION_PLAYERS once we understand the bit-packed format
         // packetHandlers.put(Opcodes.Server.SV_REGION_PLAYERS, new SV_RegionPlayersHandler()::handle);
-        packetHandlers.put(Opcodes.Server.SV_REGION_OBJECTS, new SV_RegionObjectsHandler()::handle);
-        packetHandlers.put(Opcodes.Server.SV_REGION_WALL_OBJECTS, new SV_RegionWallObjectsHandler()::handle);
-        packetHandlers.put(Opcodes.Server.SV_REGION_GROUND_ITEMS, new SV_RegionGroundItemsHandler()::handle);
-        packetHandlers.put(Opcodes.Server.SV_REGION_NPCS, new SV_RegionNPCsHandler()::handle);
+
+        // NOTE: SV_REGION_OBJECTS, SV_REGION_WALL_OBJECTS, SV_REGION_GROUND_ITEMS, and
+        // SV_REGION_NPCS are handled by mudclient.handleIncomingPacket() (old bit-packed/byte-aligned
+        // format). The server now sends data in the original RSC wire format that the old
+        // handlers understand. Do NOT register new handlers here until those old handlers
+        // are fully migrated.
     }
 
     public static IClientPacketHandler getHandlerByOpcode(short opcode) {

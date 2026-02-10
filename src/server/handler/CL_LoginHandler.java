@@ -195,47 +195,19 @@ public class CL_LoginHandler implements IPacketHandler {
     }
     
     private void sendRegionObjects(Player player) throws IOException {
-        // Send empty objects list for now
-        Buffer out = new Buffer();
-        out.putShort(Opcodes.Server.SV_REGION_OBJECTS.value);
-        out.putShort((short) 0); // No objects
-        
-        player.getSocket().getOutputStream().write(out.toArrayWithLen());
-        player.getSocket().getOutputStream().flush();
-        Logger.debug("Sent region objects data");
+        PlayerPacketSender.sendRegionObjects(player);
     }
     
     private void sendRegionWallObjects(Player player) throws IOException {
-        // Send empty wall objects list for now
-        Buffer out = new Buffer();
-        out.putShort(Opcodes.Server.SV_REGION_WALL_OBJECTS.value);
-        out.putShort((short) 0); // No wall objects
-        
-        player.getSocket().getOutputStream().write(out.toArrayWithLen());
-        player.getSocket().getOutputStream().flush();
-        Logger.debug("Sent region wall objects data");
+        PlayerPacketSender.sendRegionWallObjects(player);
     }
     
     private void sendRegionGroundItems(Player player) throws IOException {
-        // Send empty ground items list for now
-        Buffer out = new Buffer();
-        out.putShort(Opcodes.Server.SV_REGION_GROUND_ITEMS.value);
-        out.putShort((short) 0); // No ground items
-        
-        player.getSocket().getOutputStream().write(out.toArrayWithLen());
-        player.getSocket().getOutputStream().flush();
-        Logger.debug("Sent region ground items data");
+        PlayerPacketSender.sendRegionGroundItems(player);
     }
     
     private void sendRegionNPCs(Player player) throws IOException {
-        // Send empty NPC list for now
-        Buffer out = new Buffer();
-        out.putShort(Opcodes.Server.SV_REGION_NPCS.value);
-        out.putShort((short) 0); // No NPCs
-        
-        player.getSocket().getOutputStream().write(out.toArrayWithLen());
-        player.getSocket().getOutputStream().flush();
-        Logger.debug("Sent region NPCs data");
+        PlayerPacketSender.sendRegionNpcs(player);
     }
     
 }
