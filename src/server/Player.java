@@ -82,6 +82,28 @@ public class Player {
     
     // Fatigue system
     private int fatigue;
+
+    // Game settings
+    private boolean cameraModeAuto;
+    private boolean mouseButtonOne;
+    private boolean soundDisabled;
+
+    // Equipment bonuses (calculated from equipped items)
+    private int bonusArmour;
+    private int bonusWeaponAim;
+    private int bonusWeaponPower;
+    private int bonusMagic;
+    private int bonusPrayer;
+
+    // Combat state
+    private boolean inCombat;
+    private Npc attackingNpc;        // NPC this player is fighting
+    private int combatTimer;         // Ticks remaining in combat round
+    private int lastDamageDealt;
+    private int lastDamageTaken;
+
+    // NPC interaction
+    private Npc interactingNpc;      // NPC the player is talking to
     
     public Player(Socket socket, String username, long sessionId) {
         this.socket = socket;
@@ -437,4 +459,54 @@ public class Player {
     public void setDirection(int direction) {
         this.direction = direction;
     }
+
+    // ===== Game Settings =====
+
+    public boolean isCameraModeAuto() { return cameraModeAuto; }
+    public void setCameraModeAuto(boolean v) { this.cameraModeAuto = v; }
+
+    public boolean isMouseButtonOne() { return mouseButtonOne; }
+    public void setMouseButtonOne(boolean v) { this.mouseButtonOne = v; }
+
+    public boolean isSoundDisabled() { return soundDisabled; }
+    public void setSoundDisabled(boolean v) { this.soundDisabled = v; }
+
+    // ===== Equipment Bonuses =====
+
+    public void setEquipmentBonuses(int armour, int weaponAim, int weaponPower, int magic, int prayer) {
+        this.bonusArmour = armour;
+        this.bonusWeaponAim = weaponAim;
+        this.bonusWeaponPower = weaponPower;
+        this.bonusMagic = magic;
+        this.bonusPrayer = prayer;
+    }
+
+    public int getBonusArmour() { return bonusArmour; }
+    public int getBonusWeaponAim() { return bonusWeaponAim; }
+    public int getBonusWeaponPower() { return bonusWeaponPower; }
+    public int getBonusMagic() { return bonusMagic; }
+    public int getBonusPrayer() { return bonusPrayer; }
+
+    // ===== Combat State =====
+
+    public boolean isInCombat() { return inCombat; }
+    public void setInCombat(boolean inCombat) { this.inCombat = inCombat; }
+
+    public Npc getAttackingNpc() { return attackingNpc; }
+    public void setAttackingNpc(Npc npc) { this.attackingNpc = npc; }
+
+    public int getCombatTimer() { return combatTimer; }
+    public void setCombatTimer(int timer) { this.combatTimer = timer; }
+    public void decrementCombatTimer() { if (combatTimer > 0) combatTimer--; }
+
+    public int getLastDamageDealt() { return lastDamageDealt; }
+    public void setLastDamageDealt(int d) { this.lastDamageDealt = d; }
+
+    public int getLastDamageTaken() { return lastDamageTaken; }
+    public void setLastDamageTaken(int d) { this.lastDamageTaken = d; }
+
+    // ===== NPC Interaction =====
+
+    public Npc getInteractingNpc() { return interactingNpc; }
+    public void setInteractingNpc(Npc npc) { this.interactingNpc = npc; }
 }

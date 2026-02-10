@@ -20,6 +20,17 @@ public class Npc {
     private int walkTimer;       // Ticks until next random walk attempt
     private boolean canWalk;     // Whether this NPC has walk bounds (can roam)
 
+    // Combat state
+    private boolean inCombat;
+    private Player combatTarget;     // Player this NPC is fighting
+    private int currentHits;         // Current hitpoints
+    private int maxHits;             // Maximum hitpoints (from NpcDefinition)
+    private int combatTimer;         // Ticks until next combat round
+    private boolean isDead;          // Whether this NPC is dead
+    private int respawnTimer;        // Ticks until respawn
+    private int retreatThreshold;    // HP percentage to retreat at (25% of max)
+    private static final int RESPAWN_TICKS = 50; // ~32 seconds at 640ms ticks
+
     public Npc(int typeId, int x, int y, int minX, int maxX, int minY, int maxY) {
         this.typeId = typeId;
         this.x = x;
@@ -36,6 +47,24 @@ public class Npc {
         this.walkTimer = random.nextInt(10) + 5; // Random initial delay
         // NPC can walk if it has walk bounds that differ from spawn point
         this.canWalk = (minX != maxX || minY != maxY);
+        // Combat defaults
+        this.inCombat = false;
+        this.isDead = false;
+        this.currentHits = 1;
+        this.maxHits = 1;
+        this.retreatThreshold = 0;
+    }
+
+    /**
+     * Initialize combat stats from NPC definition data.
+     * Call after construction when definitions are loaded.
+     */
+    public void initFromDefinition(NpcDefinition def) {
+        if (def != null) {
+            this.maxHits = Math.max(1, def.getHits());
+            this.currentHits = this.maxHits;
+            this.retreatThreshold = (int) (this.maxHits * 0.25);
+        }
     }
 
     /**
@@ -174,5 +203,80 @@ public class Npc {
     @Override
     public String toString() {
         return "Npc{type=" + typeId + ", pos=(" + x + "," + y + "), id=" + serverId + "}";
+    }
+
+    // ===== Combat Methods =====
+
+    public boolean isInCombat() { return inCombat; }
+    public void setInCombat(boolean inCombat) { this.inCombat = inCombat; }
+
+    public Player getCombatTarget() { return combatTarget; }
+    public void setCombatTarget(Player target) { this.combatTarget = target; }
+
+    public int getCurrentHits() { return currentHits; }
+    public void setCurrentHits(int hp) { this.currentHits = Math.max(0, hp); }
+
+    public int getMaxHits() { return maxHits; }
+    public void setMaxHits(int hp) { this.maxHits = hp; }
+
+    public int getCombatTimer() { return combatTimer; }
+    public void setCombatTimer(int timer) { this.combatTimer = timer; }
+    public void decrementCombatTimer() { if (combatTimer > 0) combatTimer--; }
+
+    public boolean isDead() { return isDead; }
+    public void setDead(boolean dead) { this.isDead = dead; }
+
+    public int getRespawnTimer() { return respawnTimer; }
+    public void decrementRespawnTimer() { if (respawnTimer > 0) respawnTimer--; }
+
+    /**
+     * Take damage. Returns actual damage dealt.
+     */
+    public int takeDamage(int damage) {
+        int actualDamage = Math.min(damage, currentHits);
+        currentHits -= actualDamage;
+        if (currentHits <= 0) {
+            currentHits = 0;
+            isDead = true;
+        }
+        return actualDamage;
+    }
+
+    /**
+     * Check if NPC should retreat (at 25% HP or below).
+     */
+    public boolean shouldRetreat() {
+        return currentHits <= retreatThreshold && retreatThreshold > 0;
+    }
+
+    /**
+     * Respawn the NPC at its original spawn location with full HP.
+     */
+    public void respawn() {
+        this.x = spawnX;
+        this.y = spawnY;
+        this.currentHits = maxHits;
+        this.isDead = false;
+        this.inCombat = false;
+        this.combatTarget = null;
+        this.combatTimer = 0;
+        this.moved = false;
+        Logger.debug("NPC respawned: " + this);
+    }
+
+    /**
+     * Start the respawn timer after death.
+     */
+    public void startRespawnTimer() {
+        this.respawnTimer = RESPAWN_TICKS;
+    }
+
+    /**
+     * End combat, reset combat-related state.
+     */
+    public void endCombat() {
+        this.inCombat = false;
+        this.combatTarget = null;
+        this.combatTimer = 0;
     }
 }

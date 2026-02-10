@@ -64,6 +64,12 @@ public class CL_LoginHandler implements IPacketHandler {
             // Send inventory
             sendInventory(player);
             
+            // Send equipment bonuses (after inventory, so bonuses reflect equipped items)
+            PlayerPacketSender.sendEquipmentBonuses(player);
+            
+            // Send game settings
+            PlayerPacketSender.sendGameSettings(player);
+            
             // Send friend list
             sendFriendList(player);
             

@@ -64,6 +64,11 @@ public class PlayerPersistence {
             sb.append("  \"blockTrade\": ").append(player.isBlockTrade()).append(",\n");
             sb.append("  \"blockDuel\": ").append(player.isBlockDuel()).append(",\n");
 
+            // Game settings
+            sb.append("  \"cameraModeAuto\": ").append(player.isCameraModeAuto()).append(",\n");
+            sb.append("  \"mouseButtonOne\": ").append(player.isMouseButtonOne()).append(",\n");
+            sb.append("  \"soundDisabled\": ").append(player.isSoundDisabled()).append(",\n");
+
             // Inventory
             sb.append("  \"inventory\": [");
             List<Item> inventory = player.getInventory();
@@ -144,6 +149,11 @@ public class PlayerPersistence {
             player.setBlockPrivateMessages(extractBool(content, "blockPrivateMessages", false));
             player.setBlockTrade(extractBool(content, "blockTrade", false));
             player.setBlockDuel(extractBool(content, "blockDuel", false));
+
+            // Game settings
+            player.setCameraModeAuto(extractBool(content, "cameraModeAuto", false));
+            player.setMouseButtonOne(extractBool(content, "mouseButtonOne", false));
+            player.setSoundDisabled(extractBool(content, "soundDisabled", false));
 
             // Inventory
             loadInventory(player, content);

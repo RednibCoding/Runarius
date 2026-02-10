@@ -568,6 +568,110 @@ public class GameConnection extends GameShell {
         }
     }
 
+    /**
+     * Send ground item take packet (new Buffer format).
+     */
+    protected void sendGroundItemTake(int worldX, int worldY, int itemId, int itemIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_GROUNDITEM_TAKE.value);
+            out.putShort((short) worldX);
+            out.putShort((short) worldY);
+            out.putShort((short) itemId);
+            out.putShort((short) itemIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send ground item take: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send NPC talk packet (new Buffer format).
+     */
+    protected void sendNpcTalk(int npcServerIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_NPC_TALK.value);
+            out.putShort((short) npcServerIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send NPC talk: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send NPC attack packet (new Buffer format).
+     */
+    protected void sendNpcAttack(int npcServerIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_NPC_ATTACK.value);
+            out.putShort((short) npcServerIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send NPC attack: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send object command 1 packet (new Buffer format).
+     */
+    protected void sendObjectCmd1(int worldX, int worldY) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_OBJECT_CMD1.value);
+            out.putShort((short) worldX);
+            out.putShort((short) worldY);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send object cmd1: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send object command 2 packet (new Buffer format).
+     */
+    protected void sendObjectCmd2(int worldX, int worldY) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_OBJECT_CMD2.value);
+            out.putShort((short) worldX);
+            out.putShort((short) worldY);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send object cmd2: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send game settings packet (new Buffer format).
+     */
+    protected void sendGameSettings(int settingId, int value) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_SETTINGS_GAME.value);
+            out.putByte((byte) settingId);
+            out.putByte((byte) value);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send game settings: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send choose option packet (new Buffer format).
+     */
+    protected void sendChooseOption(int optionIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_CHOOSE_OPTION.value);
+            out.putByte((byte) optionIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send choose option: " + ex.getMessage());
+        }
+    }
+
     protected void showLoginScreenStatus(String s, String s1) {
     }
 

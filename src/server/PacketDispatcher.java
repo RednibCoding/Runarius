@@ -32,6 +32,14 @@ public final class PacketDispatcher {
         register(Opcodes.Client.CL_INV_WEAR, new CL_InvWearHandler());
         register(Opcodes.Client.CL_INV_UNEQUIP, new CL_InvUnequipHandler());
         register(Opcodes.Client.CL_INV_DROP, new CL_InvDropHandler());
+
+        register(Opcodes.Client.CL_GROUNDITEM_TAKE, new CL_GroundItemTakeHandler());
+        register(Opcodes.Client.CL_NPC_TALK, new CL_NpcTalkHandler());
+        register(Opcodes.Client.CL_NPC_ATTACK, new CL_NpcAttackHandler());
+        register(Opcodes.Client.CL_CHOOSE_OPTION, new CL_ChooseOptionHandler());
+        register(Opcodes.Client.CL_OBJECT_CMD1, new CL_ObjectCmd1Handler());
+        register(Opcodes.Client.CL_OBJECT_CMD2, new CL_ObjectCmd2Handler());
+        register(Opcodes.Client.CL_SETTINGS_GAME, new CL_GameSettingsHandler());
     }
 
     private void register(Opcodes.Client opcode, IPacketHandler handler) {

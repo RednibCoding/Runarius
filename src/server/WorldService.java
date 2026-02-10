@@ -1,7 +1,10 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public final class WorldService {
     private static final int WORLD_WIDTH = 2304;
@@ -16,6 +19,11 @@ public final class WorldService {
     private List<DataLoader.WallObjectData> wallObjects = new ArrayList<>();
     private List<DataLoader.GroundItemData> groundItems = new ArrayList<>();
 
+    // Definitions loaded from config files
+    private List<ItemDefinition> itemDefinitions = new ArrayList<>();
+    private List<NpcDefinition> npcDefinitions = new ArrayList<>();
+    private Map<Integer, Integer> edibleItems = new HashMap<>();
+
     public void spawnPlayer(Player player) {
         player.setX(DEFAULT_SPAWN_X);
         player.setY(DEFAULT_SPAWN_Y);
@@ -27,8 +35,34 @@ public final class WorldService {
      * Call this once during server startup.
      */
     public void loadData(String dataPath) {
+        // Load config definitions first (item defs, NPC defs)
+        try {
+            itemDefinitions = DataLoader.loadItemDefinitions(dataPath + "/config/items.json");
+            DataLoader.loadWieldableData(dataPath + "/wieldable.json", itemDefinitions);
+        } catch (IOException ex) {
+            Logger.error("Failed to load item definitions: " + ex.getMessage());
+        }
+
+        try {
+            npcDefinitions = DataLoader.loadNpcDefinitions(dataPath + "/config/npcs.json");
+        } catch (IOException ex) {
+            Logger.error("Failed to load NPC definitions: " + ex.getMessage());
+        }
+
+        try {
+            edibleItems = DataLoader.loadEdibleData(dataPath + "/edible.json");
+        } catch (IOException ex) {
+            Logger.error("Failed to load edible data: " + ex.getMessage());
+        }
+
+        // Load spawn locations
         try {
             npcs = DataLoader.loadNpcs(dataPath + "/locations/npcs.json");
+            // Initialize NPC combat stats from definitions
+            for (Npc npc : npcs) {
+                NpcDefinition def = getNpcDefinition(npc.getTypeId());
+                npc.initFromDefinition(def);
+            }
         } catch (IOException ex) {
             Logger.error("Failed to load NPCs: " + ex.getMessage());
         }
@@ -53,7 +87,9 @@ public final class WorldService {
 
         Logger.info("World data loaded: " + npcs.size() + " NPCs, " +
                     objects.size() + " objects, " + wallObjects.size() + " walls, " +
-                    groundItems.size() + " ground items");
+                    groundItems.size() + " ground items, " +
+                    itemDefinitions.size() + " item defs, " +
+                    npcDefinitions.size() + " NPC defs");
     }
 
     // ===== Query methods =====
@@ -112,5 +148,102 @@ public final class WorldService {
 
     public int getPlaneMultiplier() {
         return 1;
+    }
+
+    // ===== Definition Queries =====
+
+    public ItemDefinition getItemDefinition(int itemId) {
+        if (itemId >= 0 && itemId < itemDefinitions.size()) {
+            return itemDefinitions.get(itemId);
+        }
+        return null;
+    }
+
+    public NpcDefinition getNpcDefinition(int npcTypeId) {
+        if (npcTypeId >= 0 && npcTypeId < npcDefinitions.size()) {
+            return npcDefinitions.get(npcTypeId);
+        }
+        return null;
+    }
+
+    public List<ItemDefinition> getItemDefinitions() {
+        return Collections.unmodifiableList(itemDefinitions);
+    }
+
+    public List<NpcDefinition> getNpcDefinitions() {
+        return Collections.unmodifiableList(npcDefinitions);
+    }
+
+    public int getEdibleHealAmount(int itemId) {
+        return edibleItems.getOrDefault(itemId, 0);
+    }
+
+    public boolean isEdible(int itemId) {
+        return edibleItems.containsKey(itemId);
+    }
+
+    // ===== Ground Item Management =====
+
+    /**
+     * Remove a ground item at the specified position with the given item ID.
+     * Returns true if the item was found and removed.
+     */
+    public boolean removeGroundItem(int x, int y, int itemId) {
+        Iterator<DataLoader.GroundItemData> it = groundItems.iterator();
+        while (it.hasNext()) {
+            DataLoader.GroundItemData item = it.next();
+            if (item.x == x && item.y == y && item.id == itemId) {
+                it.remove();
+                Logger.debug("Removed ground item: id=" + itemId + " at (" + x + "," + y + ")");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Add a ground item to the world.
+     */
+    public void addGroundItem(int itemId, int x, int y) {
+        groundItems.add(new DataLoader.GroundItemData(itemId, x, y, 0));
+        Logger.debug("Added ground item: id=" + itemId + " at (" + x + "," + y + ")");
+    }
+
+    // ===== NPC Management =====
+
+    /**
+     * Find an NPC by its server index.
+     */
+    public Npc getNpcByServerId(int serverId) {
+        for (Npc npc : npcs) {
+            if (npc.getServerId() == serverId) {
+                return npc;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find a game object at the specified world coordinates.
+     */
+    public DataLoader.GameObjectData getObjectAt(int x, int y) {
+        for (DataLoader.GameObjectData obj : objects) {
+            if (obj.x == x && obj.y == y) {
+                return obj;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find a wall object at the specified world coordinates.
+     */
+    public DataLoader.WallObjectData getWallObjectAt(int x, int y) {
+        for (DataLoader.WallObjectData wall : wallObjects) {
+            if (wall.x == x && wall.y == y) {
+                return wall;
+            }
+        }
+        return null;
     }
 }

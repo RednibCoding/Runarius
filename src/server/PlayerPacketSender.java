@@ -1,10 +1,11 @@
+import common.ChatCodec;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
 public final class PlayerPacketSender {
     private PlayerPacketSender() {}
-
     /**
      * Send a chat message from one player to a viewer, via SV_REGION_PLAYER_UPDATE updateType=1.
      */
@@ -473,5 +474,161 @@ public final class PlayerPacketSender {
         player.getSocket().getOutputStream().flush();
 
         Logger.debug("Sent " + nearbyItems.size() + " ground items to " + player.getUsername());
+    }
+
+    // ===== Dialogue Packets =====
+
+    /**
+     * Send option list to a player (for NPC dialogue).
+     * Format matches mudclient SV_OPTION_LIST handler:
+     *   pdata: [opcode] [byte count] [per option: byte strlen, string chars]
+     *
+     * Note: This goes through legacy handler so pdata[0] = opcode, data starts at pdata[1].
+     */
+    public static void sendOptionList(Player player, String[] options) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_OPTION_LIST.value);
+        out.putByte((byte) options.length);
+
+        for (String option : options) {
+            byte[] optionBytes = option.getBytes();
+            out.putByte((byte) optionBytes.length);
+            out.put(optionBytes);
+        }
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent option list (" + options.length + " options) to " + player.getUsername());
+    }
+
+    /**
+     * Close the option list menu for a player.
+     */
+    public static void sendOptionListClose(Player player) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_OPTION_LIST_CLOSE.value);
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent option list close to " + player.getUsername());
+    }
+
+    // ===== Equipment Bonus Packet =====
+
+    /**
+     * Send equipment bonus stats to a player.
+     * Format: [byte armour] [byte weaponAim] [byte weaponPower] [byte magic] [byte prayer]
+     * These are the 5 equipment bonus values shown in the stats panel.
+     */
+    public static void sendEquipmentBonuses(Player player) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        // Calculate bonuses from equipped items
+        int armour = 0, weaponAim = 0, weaponPower = 0, magic = 0, prayer = 0;
+
+        WorldService world = ServerContext.get().getWorldService();
+        for (Item item : player.getInventory()) {
+            if (item.isEquipped()) {
+                ItemDefinition def = world.getItemDefinition(item.getId());
+                if (def != null) {
+                    armour += def.getArmour();
+                    weaponAim += def.getWeaponAim();
+                    weaponPower += def.getWeaponPower();
+                    magic += def.getMagic();
+                    prayer += def.getPrayer();
+                }
+            }
+        }
+
+        // Store on player for combat calculations
+        player.setEquipmentBonuses(armour, weaponAim, weaponPower, magic, prayer);
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_PLAYER_STAT_EQUIPMENT_BONUS.value);
+        out.putByte((byte) armour);
+        out.putByte((byte) weaponAim);
+        out.putByte((byte) weaponPower);
+        out.putByte((byte) magic);
+        out.putByte((byte) prayer);
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent equipment bonuses to " + player.getUsername() +
+                     ": armour=" + armour + " aim=" + weaponAim + " power=" + weaponPower +
+                     " magic=" + magic + " prayer=" + prayer);
+    }
+
+    // ===== NPC Update Packet =====
+
+    /**
+     * Send NPC update (chat/damage) to a player.
+     * Format: [short updateCount] per update: [short npcServerId] [byte updateType]
+     *   Type 1 (chat): [short targetPlayerIndex] [byte msgLen] [bytes scrambledMsg]
+     *   Type 2 (damage): [byte damage] [byte currentHP] [byte maxHP]
+     */
+    public static void sendNpcChat(Player player, Npc npc, String message) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        byte[] scrambled = ChatCodec.scramble(message);
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_NPC_UPDATE.value);
+        out.putShort((short) 1);                         // 1 update
+        out.putShort((short) npc.getServerId());         // NPC server index
+        out.putByte((byte) 1);                            // updateType = 1 (chat)
+        out.putShort((short) player.getServerId());      // target player index
+        out.putByte((byte) scrambled.length);             // message length
+        out.put(scrambled);                               // scrambled message
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+
+    /**
+     * Send NPC damage update to nearby players.
+     * Shows health bar and damage splat on the NPC.
+     */
+    public static void sendNpcDamage(Player viewer, Npc npc, int damage, int currentHP, int maxHP) throws IOException {
+        if (viewer == null || viewer.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_REGION_NPC_UPDATE.value);
+        out.putShort((short) 1);                         // 1 update
+        out.putShort((short) npc.getServerId());         // NPC server index
+        out.putByte((byte) 2);                            // updateType = 2 (damage)
+        out.putByte((byte) damage);                       // damage taken
+        out.putByte((byte) currentHP);                    // current health
+        out.putByte((byte) maxHP);                        // max health
+
+        viewer.getSocket().getOutputStream().write(out.toArrayWithLen());
+        viewer.getSocket().getOutputStream().flush();
+    }
+
+    // ===== Game Settings Packet =====
+
+    /**
+     * Send game settings to the client.
+     * Format: [byte cameraAuto] [byte mouseButtonOne] [byte soundDisabled]
+     */
+    public static void sendGameSettings(Player player) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_GAME_SETTINGS.value);
+        out.putByte((byte) (player.isCameraModeAuto() ? 1 : 0));
+        out.putByte((byte) (player.isMouseButtonOne() ? 1 : 0));
+        out.putByte((byte) (player.isSoundDisabled() ? 1 : 0));
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent game settings to " + player.getUsername());
     }
 }

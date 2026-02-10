@@ -45,12 +45,19 @@ public class Item {
     
     /**
      * Check if this item is stackable.
-     * In RSC, items like arrows, runes, coins are stackable.
-     * This is a placeholder - would need actual item definitions.
+     * Uses loaded item definitions from WorldService.
      */
     public boolean isStackable() {
-        // TODO: Load from item definitions
-        // For now, assume coins (id 10) and some common stackable items
-        return id == 10 || id == 31 || id == 32 || id == 33; // coins, arrows, etc
+        try {
+            WorldService world = ServerContext.get().getWorldService();
+            ItemDefinition def = world.getItemDefinition(id);
+            if (def != null) {
+                return def.isStackable();
+            }
+        } catch (Exception ex) {
+            // Fall through to hardcoded defaults if context not available
+        }
+        // Fallback for pre-initialization or unknown items
+        return id == 10 || id == 31 || id == 32 || id == 33;
     }
 }

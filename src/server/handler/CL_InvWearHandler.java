@@ -36,6 +36,9 @@ public class CL_InvWearHandler implements IPacketHandler {
             // Send update to client
             PlayerPacketSender.sendInventoryItemUpdate(player, slotIndex);
 
+            // Update equipment bonuses
+            PlayerPacketSender.sendEquipmentBonuses(player);
+
             // Broadcast appearance change to nearby players
             VisibilityService visibility = ServerContext.get().getVisibilityService();
             PlayerRepository allPlayers = ServerContext.get().getPlayers();

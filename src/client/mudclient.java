@@ -2844,9 +2844,7 @@ public class mudclient extends GameConnection {
             for (int i = 0; i < optionMenuCount; i++) {
                 if (super.mouseX >= surface.textWidth(optionMenuEntry[i], 1) || super.mouseY <= i * 12 || super.mouseY >= 12 + i * 12)
                     continue;
-                super.clientStream.newPacket(Opcodes.Client.CL_CHOOSE_OPTION.value);
-                super.clientStream.putByte(i);
-                super.clientStream.sendPacket();
+                sendChooseOption(i);
                 break;
             }
 
@@ -2940,7 +2938,7 @@ public class mudclient extends GameConnection {
                     i3 -= (20 * ty) / 100;
                 else if (character.animationCurrent == 9)
                     i3 += (20 * ty) / 100;
-                int l3 = (character.healthCurrent * 30) / character.healthMax;
+                int l3 = character.healthMax > 0 ? (character.healthCurrent * 30) / character.healthMax : 0;
                 healthBarX[healthBarCount] = i3 + w / 2;
                 healthBarY[healthBarCount] = y;
                 healthBarMissing[healthBarCount++] = l3;
@@ -3804,7 +3802,7 @@ public class mudclient extends GameConnection {
                     i3 -= (20 * ty) / 100;
                 else if (character.animationCurrent == 9)
                     i3 += (20 * ty) / 100;
-                int i4 = (character.healthCurrent * 30) / character.healthMax;
+                int i4 = character.healthMax > 0 ? (character.healthCurrent * 30) / character.healthMax : 0;
                 healthBarX[healthBarCount] = i3 + w / 2;
                 healthBarY[healthBarCount] = y;
                 healthBarMissing[healthBarCount++] = i4;
@@ -5224,26 +5222,17 @@ public class mudclient extends GameConnection {
             int j1 = byte0 + 30;
             if (super.mouseX > l && super.mouseX < l + c1 && super.mouseY > j1 - 12 && super.mouseY < j1 + 4 && mouseButtonClick == 1) {
                 optionCameraModeAuto = !optionCameraModeAuto;
-                super.clientStream.newPacket(Opcodes.Client.CL_SETTINGS_GAME.value);
-                super.clientStream.putByte(0);
-                super.clientStream.putByte(optionCameraModeAuto ? 1 : 0);
-                super.clientStream.sendPacket();
+                sendGameSettings(0, optionCameraModeAuto ? 1 : 0);
             }
             j1 += 15;
             if (super.mouseX > l && super.mouseX < l + c1 && super.mouseY > j1 - 12 && super.mouseY < j1 + 4 && mouseButtonClick == 1) {
                 optionMouseButtonOne = !optionMouseButtonOne;
-                super.clientStream.newPacket(Opcodes.Client.CL_SETTINGS_GAME.value);
-                super.clientStream.putByte(2);
-                super.clientStream.putByte(optionMouseButtonOne ? 1 : 0);
-                super.clientStream.sendPacket();
+                sendGameSettings(2, optionMouseButtonOne ? 1 : 0);
             }
             j1 += 15;
             if (members && super.mouseX > l && super.mouseX < l + c1 && super.mouseY > j1 - 12 && super.mouseY < j1 + 4 && mouseButtonClick == 1) {
                 optionSoundDisabled = !optionSoundDisabled;
-                super.clientStream.newPacket(Opcodes.Client.CL_SETTINGS_GAME.value);
-                super.clientStream.putByte(3);
-                super.clientStream.putByte(optionSoundDisabled ? 1 : 0);
-                super.clientStream.sendPacket();
+                sendGameSettings(3, optionSoundDisabled ? 1 : 0);
             }
             j1 += 15;
             j1 += 15;
@@ -5535,12 +5524,7 @@ public class mudclient extends GameConnection {
         }
         if (mitemid == 220) {
             walkToGroundItem(localRegionX, localRegionY, mx, my, true);
-            super.clientStream.newPacket(Opcodes.Client.CL_GROUNDITEM_TAKE.value);
-            super.clientStream.putShort(mx + regionX);
-            super.clientStream.putShort(my + regionY);
-            super.clientStream.putShort(midx);
-            super.clientStream.putShort(msrcidx);
-            super.clientStream.sendPacket();
+            sendGroundItemTake(mx + regionX, my + regionY, midx, msrcidx);
         }
         if (mitemid == 3200)
             showMessage(GameData.itemDescription[midx], 3);
@@ -5602,17 +5586,11 @@ public class mudclient extends GameConnection {
         }
         if (mitemid == 420) {
             walkToObject(mx, my, midx, msrcidx);
-            super.clientStream.newPacket(Opcodes.Client.CL_OBJECT_CMD1.value);
-            super.clientStream.putShort(mx + regionX);
-            super.clientStream.putShort(my + regionY);
-            super.clientStream.sendPacket();
+            sendObjectCmd1(mx + regionX, my + regionY);
         }
         if (mitemid == 2400) {
             walkToObject(mx, my, midx, msrcidx);
-            super.clientStream.newPacket(Opcodes.Client.CL_OBJECT_CMD2.value);
-            super.clientStream.putShort(mx + regionX);
-            super.clientStream.putShort(my + regionY);
-            super.clientStream.sendPacket();
+            sendObjectCmd2(mx + regionX, my + regionY);
         }
         if (mitemid == 3400)
             showMessage(GameData.objectDescription[midx], 3);
@@ -5678,9 +5656,7 @@ public class mudclient extends GameConnection {
             int j2 = (mx - 64) / magicLoc;
             int j4 = (my - 64) / magicLoc;
             walkToActionSource(localRegionX, localRegionY, j2, j4, true);
-            super.clientStream.newPacket(Opcodes.Client.CL_NPC_TALK.value);
-            super.clientStream.putShort(midx);
-            super.clientStream.sendPacket();
+            sendNpcTalk(midx);
         }
         if (mitemid == 725) {
             int k2 = (mx - 64) / magicLoc;
@@ -5694,9 +5670,7 @@ public class mudclient extends GameConnection {
             int l2 = (mx - 64) / magicLoc;
             int l4 = (my - 64) / magicLoc;
             walkToActionSource(localRegionX, localRegionY, l2, l4, true);
-            super.clientStream.newPacket(Opcodes.Client.CL_NPC_ATTACK.value);
-            super.clientStream.putShort(midx);
-            super.clientStream.sendPacket();
+            sendNpcAttack(midx);
         }
         if (mitemid == 3700)
             showMessage(GameData.npcDescription[midx], 3);
