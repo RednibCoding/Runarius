@@ -86,12 +86,15 @@ public final class PlayerPacketSender {
     int headSprite = target.getHeadType();
     int bodyBase = target.getBodyGender();
 
-    equippedItems[0] = 0; // cape/back (none)
-    equippedItems[1] = headSprite; // head/hair (already 1-based)
-    equippedItems[2] = bodyBase + 1; // torso sprite offset relative to body index
-    equippedItems[3] = bodyBase + 2; // matching leg sprite for selected body
+    // Slot 0: head/hair (replace-head)
+    // Slot 1: body/torso (replace-body)
+    // Slot 2: legs (replace-legs) - always animation 2 (value 3 = index+1)
+    // Slots 3-11: equipment (left-hand, right-hand, head armor, etc.)
+    equippedItems[0] = headSprite;
+    equippedItems[1] = bodyBase + 1;
+    equippedItems[2] = 3;
 
-        for (int slot = 4; slot < equippedItems.length; slot++) {
+        for (int slot = 3; slot < equippedItems.length; slot++) {
             equippedItems[slot] = 0;
         }
 

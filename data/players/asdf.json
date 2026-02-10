@@ -2,7 +2,7 @@
   "username": "asdf",
   "usernameHash": 76818,
   "x": 123,
-  "y": 655,
+  "y": 659,
   "planeIndex": 0,
   "headGender": 1,
   "headType": 1,
@@ -11,7 +11,7 @@
   "topColour": 8,
   "bottomColour": 14,
   "skinColour": 0,
-  "currentStats": [1,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  "currentStats": [1,1,1,5,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   "baseStats": [1,1,1,10,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
   "experience": [0,0,0,1154,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   "combatStyle": 0,
@@ -27,6 +27,6 @@
   "inventory": [],
   "friendList": [],
   "ignoreList": [],
-  "lastLoginTime": 1770747776197,
+  "lastLoginTime": 1770748540368,
   "lastLoginIP": "127.0.0.1"
 }
