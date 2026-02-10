@@ -17,10 +17,11 @@ public class CL_LogoutHandler implements IPacketHandler {
             
             Logger.info(player.getUsername() + " is logging out");
             
+            // Save player data before removing
+            PlayerPersistence.save(player);
+            
             context.getVisibilityService().handlePlayerRemoval(player);
             context.getPlayers().removePlayer(player);
-            
-            // TODO: Save player data
             
             // Close the connection
             socket.close();

@@ -54,6 +54,12 @@ public final class PlayerRepository {
             .findFirst();
     }
 
+    public Optional<Player> findByUsernameHash(long usernameHash) {
+        return playersByUsername.values().stream()
+            .filter(player -> player.getUsernameHash() == usernameHash)
+            .findFirst();
+    }
+
     public Optional<Player> findPendingBySocket(Socket socket) {
         return pendingPlayers.values().stream()
             .filter(player -> player.getSocket() == socket)

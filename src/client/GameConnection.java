@@ -526,6 +526,48 @@ public class GameConnection extends GameShell {
         }
     }
 
+    /**
+     * Send inventory equip packet (new Buffer format).
+     */
+    protected void sendInvWear(int slotIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_INV_WEAR.value);
+            out.putShort((short) slotIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send inv wear: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send inventory unequip packet (new Buffer format).
+     */
+    protected void sendInvUnequip(int slotIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_INV_UNEQUIP.value);
+            out.putShort((short) slotIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send inv unequip: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Send inventory drop packet (new Buffer format).
+     */
+    protected void sendInvDrop(int slotIndex) {
+        try {
+            Buffer out = new Buffer();
+            out.putShort(Opcodes.Client.CL_INV_DROP.value);
+            out.putShort((short) slotIndex);
+            sendPacket(out);
+        } catch (IOException ex) {
+            Logger.error("Failed to send inv drop: " + ex.getMessage());
+        }
+    }
+
     protected void showLoginScreenStatus(String s, String s1) {
     }
 

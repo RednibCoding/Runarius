@@ -5631,14 +5631,10 @@ public class mudclient extends GameConnection {
             selectedItemInventoryIndex = -1;
         }
         if (mitemid == 620) {
-            super.clientStream.newPacket(Opcodes.Client.CL_INV_UNEQUIP.value);
-            super.clientStream.putShort(midx);
-            super.clientStream.sendPacket();
+            sendInvUnequip(midx);
         }
         if (mitemid == 630) {
-            super.clientStream.newPacket(Opcodes.Client.CL_INV_WEAR.value);
-            super.clientStream.putShort(midx);
-            super.clientStream.sendPacket();
+            sendInvWear(midx);
         }
         if (mitemid == 640) {
             super.clientStream.newPacket(Opcodes.Client.CL_INV_CMD.value);
@@ -5651,9 +5647,7 @@ public class mudclient extends GameConnection {
             selectedItemName = GameData.itemName[inventoryItemId[selectedItemInventoryIndex]];
         }
         if (mitemid == 660) {
-            super.clientStream.newPacket(Opcodes.Client.CL_INV_DROP.value);
-            super.clientStream.putShort(midx);
-            super.clientStream.sendPacket();
+            sendInvDrop(midx);
             selectedItemInventoryIndex = -1;
             showUiTab = 0;
             showMessage("Dropping " + GameData.itemName[inventoryItemId[midx]], 4);

@@ -19,6 +19,7 @@ public final class PacketDispatcher {
         register(Opcodes.Client.CL_IGNORE_REMOVE, new CL_IgnoreRemoveHandler());
         register(Opcodes.Client.CL_SETTINGS_PRIVACY, new CL_PrivacySettingsHandler());
         register(Opcodes.Client.CL_CHAT, new CL_ChatHandler());
+        register(Opcodes.Client.CL_PM, new CL_PMHandler());
 
         register(Opcodes.Client.CL_COMMAND, new CL_CommandHandler());
 
@@ -27,6 +28,10 @@ public final class PacketDispatcher {
 
         register(Opcodes.Client.CL_WALK, new CL_WalkHandler());
         register(Opcodes.Client.CL_WALK_ACTION, new CL_WalkHandler());
+
+        register(Opcodes.Client.CL_INV_WEAR, new CL_InvWearHandler());
+        register(Opcodes.Client.CL_INV_UNEQUIP, new CL_InvUnequipHandler());
+        register(Opcodes.Client.CL_INV_DROP, new CL_InvDropHandler());
     }
 
     private void register(Opcodes.Client opcode, IPacketHandler handler) {

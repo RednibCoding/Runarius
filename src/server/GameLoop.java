@@ -39,9 +39,20 @@ public final class GameLoop {
         tickCount++;
         Logger.debug("=== TICK " + tickCount + " START ===");
 
+        processNpcs();
         processPlayers();
 
         Logger.debug("=== TICK " + tickCount + " END ===");
+    }
+
+    /**
+     * Process all NPC AI: random walking within bounds.
+     */
+    private void processNpcs() {
+        List<Npc> npcs = context.getWorldService().getNpcs();
+        for (Npc npc : npcs) {
+            npc.tryRandomWalk();
+        }
     }
 
     private void processPlayers() throws Exception {

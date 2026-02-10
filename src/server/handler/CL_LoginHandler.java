@@ -37,7 +37,12 @@ public class CL_LoginHandler implements IPacketHandler {
             
             Logger.info("Found pending player: " + player.getUsername());
             
+            // Set default spawn position first
             world.spawnPlayer(player);
+            
+            // Try to load saved player data (overrides defaults if save exists)
+            boolean hasSave = PlayerPersistence.load(player);
+            
             players.addPlayer(player);
             visibility.establishMutualVisibility(player);
             
@@ -87,6 +92,9 @@ public class CL_LoginHandler implements IPacketHandler {
             for (Player nearby : player.getAddedPlayers()) {
                 PlayerPacketSender.sendAppearance(nearby, player);
             }
+
+            // Send welcome screen (must be after region data)
+            sendWelcome(player);
             
             Logger.info("Player " + username + " logged in successfully");
             
@@ -208,6 +216,49 @@ public class CL_LoginHandler implements IPacketHandler {
     
     private void sendRegionNPCs(Player player) throws IOException {
         PlayerPacketSender.sendRegionNpcs(player);
+    }
+
+    /**
+     * Send the welcome screen packet (SV_WELCOME).
+     * Format: [int lastIP] [short daysSinceLogin] [byte recoveryDays] [short unreadMessages]
+     */
+    private void sendWelcome(Player player) throws IOException {
+        long lastLoginTime = PlayerPersistence.getLastLoginTime(player.getUsername());
+        String lastIPStr = PlayerPersistence.getLastLoginIP(player.getUsername());
+
+        // Convert IP string to int  
+        int lastIP = 0;
+        try {
+            String[] octets = lastIPStr.split("\\.");
+            if (octets.length == 4) {
+                lastIP = (Integer.parseInt(octets[0]) << 24)
+                       | (Integer.parseInt(octets[1]) << 16)
+                       | (Integer.parseInt(octets[2]) << 8)
+                       | Integer.parseInt(octets[3]);
+            }
+        } catch (Exception ex) {
+            lastIP = 0;
+        }
+
+        // Calculate days since last login
+        int daysSinceLogin = 0;
+        if (lastLoginTime > 0) {
+            long diff = System.currentTimeMillis() - lastLoginTime;
+            daysSinceLogin = (int) (diff / (1000L * 60 * 60 * 24));
+        }
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_WELCOME.value);
+        out.putInt(lastIP);                    // Last login IP
+        out.putShort((short) daysSinceLogin);  // Days since last login
+        out.putByte((byte) 255);               // Recovery questions set days (255 = not set)
+        out.putShort((short) 0);               // Unread messages
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent welcome packet to " + player.getUsername() +
+                     " (lastIP=" + lastIPStr + ", days=" + daysSinceLogin + ")");
     }
     
 }

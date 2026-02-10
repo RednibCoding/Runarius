@@ -23,6 +23,25 @@ public final class PlayerPacketSender {
         viewer.getSocket().getOutputStream().flush();
     }
 
+    /**
+     * Send a private message to a player from another player.
+     * Format: [long senderHash] [int messageId] [scrambled bytes]
+     */
+    public static void sendPrivateMessage(Player recipient, long senderHash, int messageId, byte[] scrambledMessage) throws IOException {
+        if (recipient == null || recipient.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_FRIEND_MESSAGE.value);
+        out.putLong(senderHash);
+        out.putInt(messageId);
+        out.put(scrambledMessage);
+
+        recipient.getSocket().getOutputStream().write(out.toArrayWithLen());
+        recipient.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent PM to " + recipient.getUsername() + " from hash=" + senderHash);
+    }
+
     public static void sendAppearance(Player viewer, Player target) throws IOException {
         if (viewer == null || target == null || viewer.getSocket() == null) {
             return;
@@ -76,6 +95,171 @@ public final class PlayerPacketSender {
         }
 
         return equippedItems;
+    }
+
+    // ===== Region Data Packets =====
+
+    // ===== Inventory Packets =====
+
+    /**
+     * Send a single inventory item update to the client.
+     * Format matches mudclient SV_INVENTORY_ITEM_UPDATE handler:
+     *   [byte index] [short id (with equipped bit)] [variable amount if stackable]
+     *
+     * The item ID uses bit 15 (0x8000) as the equipped flag.
+     * For stackable items, amount is encoded as:
+     *   - 1 byte if < 128
+     *   - 4 bytes if >= 128
+     */
+    public static void sendInventoryItemUpdate(Player player, int index) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+        if (index < 0 || index >= player.getInventory().size()) return;
+
+        Item item = player.getInventory().get(index);
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_INVENTORY_ITEM_UPDATE.value);
+        out.putByte((byte) index);
+
+        // Item ID with equipped flag in high bit
+        int idWithEquip = item.getId();
+        if (item.isEquipped()) {
+            idWithEquip |= 0x8000; // Set bit 15
+        }
+        out.putShort((short) idWithEquip);
+
+        // Amount encoding for stackable items
+        if (item.isStackable()) {
+            int amount = item.getAmount();
+            if (amount >= 128) {
+                out.putInt(amount);
+            } else {
+                out.putByte((byte) amount);
+            }
+        }
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent inventory update: index=" + index + " id=" + item.getId() +
+                     " equipped=" + item.isEquipped() + " to " + player.getUsername());
+    }
+
+    /**
+     * Send an inventory item removal to the client.
+     * Format: [byte index]
+     */
+    public static void sendInventoryItemRemove(Player player, int index) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_INVENTORY_ITEM_REMOVE.value);
+        out.putByte((byte) index);
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent inventory remove: index=" + index + " to " + player.getUsername());
+    }
+
+    /**
+     * Send full inventory to the client.
+     * Used after significant inventory changes (e.g., ::item command).
+     */
+    public static void sendFullInventory(Player player) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_INVENTORY_ITEMS.value);
+        out.putByte((byte) player.getInventory().size());
+
+        for (Item item : player.getInventory()) {
+            int idWithEquip = item.getId();
+            if (item.isEquipped()) {
+                idWithEquip |= 0x8000;
+            }
+            out.putShort((short) idWithEquip);
+            if (item.isStackable()) {
+                int amount = item.getAmount();
+                if (amount >= 128) {
+                    out.putInt(amount);
+                } else {
+                    out.putByte((byte) amount);
+                }
+            }
+        }
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent full inventory (" + player.getInventory().size() + " items) to " + player.getUsername());
+    }
+
+    /**
+     * Send a server message to a player.
+     */
+    public static void sendMessage(Player player, String message) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_MESSAGE.value);
+        out.putString(message);
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+    }
+
+    /**
+     * Send a single stat update to the client.
+     * Format: [byte statId] [byte currentLevel] [byte baseLevel] [int experience]
+     */
+    public static void sendStatUpdate(Player player, int statId) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+        if (statId < 0 || statId >= 18) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_PLAYER_STAT_UPDATE.value);
+        out.putByte((byte) statId);
+        out.putByte((byte) player.getCurrentStats()[statId]);
+        out.putByte((byte) player.getBaseStats()[statId]);
+        out.putInt(player.getExperience()[statId]);
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
+
+        Logger.debug("Sent stat update: stat=" + statId + " cur=" + player.getCurrentStats()[statId] +
+                     " base=" + player.getBaseStats()[statId] + " to " + player.getUsername());
+    }
+
+    /**
+     * Send full player stat list (all 18 stats).
+     */
+    public static void sendPlayerStatList(Player player) throws IOException {
+        if (player == null || player.getSocket() == null) return;
+
+        Buffer out = new Buffer();
+        out.putShort(Opcodes.Server.SV_PLAYER_STAT_LIST.value);
+
+        // Current stats
+        for (int i = 0; i < 18; i++) {
+            out.putByte((byte) player.getCurrentStats()[i]);
+        }
+
+        // Base stats
+        for (int i = 0; i < 18; i++) {
+            out.putByte((byte) player.getBaseStats()[i]);
+        }
+
+        // Experience
+        for (int i = 0; i < 18; i++) {
+            out.putInt(player.getExperience()[i]);
+        }
+
+        // Quest points
+        out.putByte((byte) player.getQuestPoints());
+
+        player.getSocket().getOutputStream().write(out.toArrayWithLen());
+        player.getSocket().getOutputStream().flush();
     }
 
     // ===== Region Data Packets =====
@@ -139,6 +323,14 @@ public final class PlayerPacketSender {
                 // Write 4-bit value with upper 2 bits = 11 (0xC) to signal removal
                 NetHelper.setBitMask(bitData, bitOffset, 4, 12);
                 bitOffset += 4;
+            } else if (npc.hasMoved()) {
+                // reqUpdate = 1, updateType = 0 (moved), direction (3 bits)
+                NetHelper.setBitMask(bitData, bitOffset, 1, 1);
+                bitOffset += 1;
+                NetHelper.setBitMask(bitData, bitOffset, 1, 0);
+                bitOffset += 1;
+                NetHelper.setBitMask(bitData, bitOffset, 3, npc.getMoveDirection());
+                bitOffset += 3;
             } else {
                 // reqUpdate = 0 (no change, NPC stays in place)
                 NetHelper.setBitMask(bitData, bitOffset, 1, 0);

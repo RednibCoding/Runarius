@@ -16,6 +16,9 @@ public class CL_CloseConnectionHandler implements IPacketHandler {
 
             Logger.info(player.getUsername() + " closed connection");
 
+            // Save player data before removing
+            PlayerPersistence.save(player);
+
             context.getVisibilityService().handlePlayerRemoval(player);
             context.getPlayers().removePlayer(player);
 

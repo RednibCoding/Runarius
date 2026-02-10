@@ -5,10 +5,18 @@
 public class Item {
     private int id;
     private int amount;
+    private boolean equipped;
     
     public Item(int id, int amount) {
         this.id = id;
         this.amount = amount;
+        this.equipped = false;
+    }
+    
+    public Item(int id, int amount, boolean equipped) {
+        this.id = id;
+        this.amount = amount;
+        this.equipped = equipped;
     }
     
     public int getId() {
@@ -25,6 +33,14 @@ public class Item {
     
     public void setAmount(int amount) {
         this.amount = amount;
+    }
+    
+    public boolean isEquipped() {
+        return equipped;
+    }
+    
+    public void setEquipped(boolean equipped) {
+        this.equipped = equipped;
     }
     
     /**

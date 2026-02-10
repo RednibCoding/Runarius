@@ -88,6 +88,8 @@ public class ClientHandler implements Runnable {
 
         PlayerRepository players = context.getPlayers();
         players.findBySocket(socket).ifPresent(player -> {
+            // Save player data before cleanup
+            PlayerPersistence.save(player);
             context.getVisibilityService().handlePlayerRemoval(player);
             players.removePlayer(player);
         });
